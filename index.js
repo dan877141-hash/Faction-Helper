@@ -927,7 +927,7 @@ client.on('interactionCreate', async interaction => {
                     `👤 **Member:** ${targetUser}\n` +
                     `🏴 **Gang:** ${leaderGang.name}`,
 
-                ephemeral: false
+                ephemeral: true
 
             });
 
@@ -1106,7 +1106,7 @@ client.on('interactionCreate', async interaction => {
                     `👤 **Member:** ${targetUser}\n` +
                     `🏴 **Gang:** ${leaderGang.name}`,
 
-                ephemeral: false
+                ephemeral: true
 
             });
 
