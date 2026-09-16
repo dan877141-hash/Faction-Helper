@@ -560,17 +560,17 @@ client.on('interactionCreate', async interaction => {
 
         try {
 
-            const stickyMessage = await channel.send({
-
-                embeds: [
-                    {
-                        title: '📌 STICKY MESSAGE',
-                        description: message,
-                        color: 0xFF8C00
-                    }
-                ]
-
-            });
+     const stickyMessage = await channel.send({
+    embeds: [
+        {
+            description: message,
+            color: 0xFF8C00,
+            footer: {
+                text: 'Lynwood Factions'
+            }
+        }
+    ]
+});
 
             // ------------------------------------------
             // SAVE STICKY
