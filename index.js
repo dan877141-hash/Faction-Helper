@@ -80,7 +80,7 @@ const GANG_LOG_CHANNEL_ID = process.env.GANG_LOG_CHANNEL_ID;
 const GANGS = {
 
     Admin: {
-        Name: 'Admin',
+        name: 'Admin',
         leaderRole: '1549649301397970974',
         gangRole: '1549649573604233246'
     },
