@@ -311,6 +311,17 @@ const commands = [
         .setDescription('Remove the sticky message from this channel.'),
 
     new SlashCommandBuilder()
+    .setName('creategang')
+    .setDescription('Create a new gang in the faction database.')
+    .addStringOption(option =>
+        option
+            .setName('name')
+            .setDescription('The name of the gang.')
+            .setRequired(true)
+            .setMaxLength(50)
+    ),
+
+    new SlashCommandBuilder()
         .setName('gangadd')
         .setDescription('Add a member to your gang.')
         .addUserOption(option =>
@@ -1078,7 +1089,229 @@ client.on('interactionCreate', async interaction => {
         });
 
     }
+    
+// ==================================================
+// /creategang
+// ==================================================
 
+if (interaction.commandName === 'creategang') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ROLE
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+
+    if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/creategang`.\n\n' +
+                'Only **High Faction Staff** can create gangs.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET GANG NAME
+    // ----------------------------------------------
+
+    const gangName =
+        interaction.options.getString('name').trim();
+
+    if (!gangName) {
+
+        return interaction.reply({
+            content:
+                '❌ You must provide a valid gang name.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // LOAD LATEST FACTION DATA
+    // ----------------------------------------------
+
+    const factions = loadFactions();
+
+    // ----------------------------------------------
+    // CHECK IF GANG ALREADY EXISTS
+    // ----------------------------------------------
+
+    const existingGang = Object.values(factions).find(
+        gang =>
+            gang &&
+            gang.name &&
+            gang.name.toLowerCase() === gangName.toLowerCase()
+    );
+
+    if (existingGang) {
+
+        return interaction.reply({
+            content:
+                `❌ A faction named **${gangName}** already exists.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // FIND NEXT EMPTY FACTION SLOT
+    // ----------------------------------------------
+
+    let factionKey = null;
+
+    for (let i = 1; i <= 12; i++) {
+
+        const key = `Faction${i}`;
+
+        if (
+            !factions[key] ||
+            !factions[key].name ||
+            factions[key].name.trim() === ''
+        ) {
+
+            factionKey = key;
+            break;
+
+        }
+
+    }
+
+    // ----------------------------------------------
+    // NO AVAILABLE SLOTS
+    // ----------------------------------------------
+
+    if (!factionKey) {
+
+        return interaction.reply({
+            content:
+                '❌ All **12 faction slots** are currently being used.\n\n' +
+                'Remove an existing faction before creating a new one.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CREATE DISCORD GANG ROLE
+    // ----------------------------------------------
+
+    let gangRole = null;
+    let leaderRole = null;
+
+    try {
+
+        gangRole =
+            await interaction.guild.roles.create({
+                name: gangName,
+                reason:
+                    `Gang created by ${interaction.user.tag}`
+            });
+
+        // ------------------------------------------
+        // CREATE LEADER ROLE
+        // ------------------------------------------
+
+        leaderRole =
+            await interaction.guild.roles.create({
+                name: `${gangName} Leader`,
+                reason:
+                    `Gang leader role created by ${interaction.user.tag}`
+            });
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not create gang roles:',
+            error
+        );
+
+        // Clean up if only one role was created
+        if (gangRole) {
+            await gangRole.delete().catch(() => {});
+        }
+
+        if (leaderRole) {
+            await leaderRole.delete().catch(() => {});
+        }
+
+        return interaction.reply({
+            content:
+                '❌ I could not create the Discord roles for this gang.\n\n' +
+                'Make sure the bot has **Manage Roles** permission and that its highest role is above the roles it is trying to create.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CREATE FACTION DATABASE ENTRY
+    // ----------------------------------------------
+
+    factions[factionKey] = {
+
+        name: gangName,
+
+        leaderRole: leaderRole.id,
+
+        gangRole: gangRole.id,
+
+        block: 'Not Assigned',
+
+        tier: 'Not Assigned'
+
+    };
+
+    // ----------------------------------------------
+    // SAVE TO factions.json
+    // ----------------------------------------------
+
+    if (!saveFactions(factions)) {
+
+        // Delete roles if the database could not save
+        await gangRole.delete().catch(() => {});
+        await leaderRole.delete().catch(() => {});
+
+        return interaction.reply({
+            content:
+                '❌ I could not save the new faction to `factions.json`.\n\n' +
+                'The Discord roles were removed so the faction does not remain partially created.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // UPDATE IN-MEMORY GANG DATA
+    // ----------------------------------------------
+
+    Object.keys(GANGS).forEach(key => {
+        delete GANGS[key];
+    });
+
+    Object.assign(GANGS, factions);
+
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
+
+    return interaction.reply({
+        content:
+            `✅ **Gang Created Successfully**\n\n` +
+            `🏴 **Faction:** ${gangName}\n` +
+            `🗂️ **Database Slot:** \`${factionKey}\`\n\n` +
+            `👥 **Gang Role:** ${gangRole}\n` +
+            `👑 **Leader Role:** ${leaderRole}\n` +
+            `📍 **Block:** Not Assigned\n` +
+            `🏆 **Tier:** Not Assigned\n\n` +
+            `The gang has been added to \`factions.json\` and is now connected to the faction system.`,
+        ephemeral: true
+    });
+
+}
 
     // ==================================================
     // /gangadd

@@ -1,105 +1,86 @@
 {
-  "Admin": {
-    "name": "Admin",
-    "leaderRole": "1549649301397970974",
-    "gangRole": "1549649573604233246",
-    "block": "Forum Drive",
-    "tier": ""
-  },
-
   "Faction1": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
     "block": "",
-    "tier": " "
+    "tier": ""
   },
-
   "Faction2": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
-    "block": " ",
+    "block": "",
     "tier": ""
   },
-
   "Faction3": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
     "block": "",
     "tier": ""
   },
-
   "Faction4": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
     "block": "",
     "tier": ""
   },
-
   "Faction5": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
-    "block": "Not Assigned",
-    "tier": "Not Assigned"
+    "block": "",
+    "tier": ""
   },
-
   "Faction6": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
-    "block": "Not Assigned",
-    "tier": "Not Assigned"
+    "block": "",
+    "tier": ""
   },
-
   "Faction7": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
-    "block": "Not Assigned",
-    "tier": "Not Assigned"
+    "block": "",
+    "tier": ""
   },
-
   "Faction8": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
-    "block": "Not Assigned",
-    "tier": "Not Assigned"
+    "block": "",
+    "tier": ""
   },
-
   "Faction9": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
-    "block": "Not Assigned",
-    "tier": "Not Assigned"
+    "block": "",
+    "tier": ""
   },
-
   "Faction10": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
-    "block": "Not Assigned",
-    "tier": "Not Assigned"
+    "block": "",
+    "tier": ""
   },
-
   "Faction11": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
-    "block": "Not Assigned",
-    "tier": "Not Assigned"
+    "block": "",
+    "tier": ""
   },
-
   "Faction12": {
-    "name": "Name",
+    "name": "",
     "leaderRole": "",
     "gangRole": "",
-    "block": "Not Assigned",
-    "tier": "Not Assigned"
+    "block": "",
+    "tier": ""
   }
 }
