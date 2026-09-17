@@ -2062,14 +2062,7 @@ if (interaction.commandName === 'gangblock') {
 // UPDATE BLOCK
 // ----------------------------------------------
 
-gang.block = block;
-
-factionsData[gangKey] = {
-    ...factionsData[gangKey],
-    block: block
-};
-
-saveFactions(factionsData);
+gang.block = newBlock;
 
 // ----------------------------------------------
 // SAVE FACTION DATA
@@ -3297,13 +3290,11 @@ if (interaction.commandName === 'gangpayout') {
     // INITIALIZE MONEY
     // ----------------------------------------------
 
-    if (
-        typeof factionMoney[faction.name] !== 'number'
-    ) {
+    if (typeof factionMoney[faction.name] !== 'number') {
 
-        factionMoney[faction.name] = 0;
+    factionMoney[faction.name] = 0;
 
-        saveFactionMoney(factionMoney);
+    saveFactionMoney(factionMoney);
 
     // ----------------------------------------------
     // SAVE TRANSACTION
@@ -4160,19 +4151,11 @@ if (interaction.commandName === 'factionstats') {
     // MONEY
     // ----------------------------------------------
 
-    let balance = 0;
-
-    if (
-        typeof moneyData !== 'undefined' &&
-        moneyData &&
-        moneyData[faction.name]
-    ) {
-
-        balance =
-            moneyData[faction.name].balance || 0;
-
-    }
-
+    const balance =
+    typeof factionMoney[faction.name] === 'number'
+        ? factionMoney[faction.name]
+        : 0;
+    
     // ----------------------------------------------
     // DISPLAY
     // ----------------------------------------------
