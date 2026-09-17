@@ -4210,7 +4210,7 @@ client.on('messageCreate', async message => {
 
         footer: {
             text:
-                'Lynwood Factions • Faction Rules'
+                'Lynwood • Faction Rules'
         },
 
         timestamp:
