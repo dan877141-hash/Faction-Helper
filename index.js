@@ -2062,7 +2062,14 @@ if (interaction.commandName === 'gangblock') {
 // UPDATE BLOCK
 // ----------------------------------------------
 
-gang.block = newBlock;
+gang.block = block;
+
+factionsData[gangKey] = {
+    ...factionsData[gangKey],
+    block: block
+};
+
+saveFactions(factionsData);
 
 // ----------------------------------------------
 // SAVE FACTION DATA
