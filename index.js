@@ -1252,6 +1252,108 @@ client.on('messageCreate', async message => {
     // Only work inside servers
     if (!message.guild) return;
 
+    // !newgangs — Faction Staff Only
+    if (message.content === '!newgangs') {
+
+        const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+
+        if (!message.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+
+            const deniedMessage = await message.reply({
+                content:
+                    '❌ You do not have permission to use `!newgangs`.\n\n' +
+                    'Only **Faction Staff** can use this command.'
+            });
+
+            setTimeout(() => {
+                deniedMessage.delete().catch(() => {});
+            }, 5000);
+
+            return;
+        }
+
+        await message.delete().catch(() => {});
+
+        const newGangEmbed = {
+            color: 0xFF8C00,
+
+            
+            title: '🏴 LYNWOOD FACTIONS • NEW GANG',
+
+            description:
+                'Interested in bringing your faction into the city?\n\n' +
+                'Please **fill out every section below** with accurate information. ' +
+                'Make sure all submitted content is **TOS-friendly**.\n\n' +
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+
+            fields: [
+                {
+                    name: '🏴 Faction Name:',
+                     value: '\u200B',
+                    inline: false
+                },
+                {
+                    name: '🖼️ Gang Logo:',
+                     value: '\u200B',
+                    inline: false
+                },
+                {
+                    name: '🎨 Faction Color',
+                    value: 'Provide the **HEX code** and an **image showing the color**.',
+                    inline: false
+                },
+                {
+                    name: '📍 Block',
+                    value: 'Provide the block/location you are requesting.',
+                    inline: true
+                },
+                {
+                    name: '👑 Co-Leaders:',
+                    value: '\u200B',
+                    inline: true
+                },
+                {
+                    name: '👥 Member Count You\'re Bringing',
+                    value: 'How many members are you bringing into the city?',
+                    inline: false
+                },
+                {
+                    name: '💎 Gang Tier Purchased',
+                    value: 'The gang tier you purchased.',
+                    inline: false
+                },
+                {
+                    name: '📋 Previous WL Gang Experience',
+                    value:
+                        'Have you had a **WL\'d gang** before in your FiveM experience?\n\n' +
+                        '**Answer:** Yes / No',
+                    inline: false
+                },
+                {
+                    name: '📜 Rules Agreement',
+                    value:
+                        'Will you follow our **Faction & Server rules at all times?**\n\n' +
+                        '**Answer:** Yes / No',
+                    inline: false
+                }
+            ],
+
+            footer: {
+                text: 'Lynwood Factions • Gang Applications'
+            },
+
+            timestamp: new Date().toISOString()
+        };
+
+        await message.channel.send({
+            embeds: [newGangEmbed]
+        });
+
+        return;
+    }
+
+    // YOUR EXISTING STICKY CODE CONTINUES HERE
+
     const sticky = stickyMessages[message.channel.id];
 
     // No sticky configured for this channel
