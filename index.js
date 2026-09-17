@@ -202,7 +202,11 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('ganginfo')
-        .setDescription('Show your gang information.')
+        .setDescription('Show your gang information.'),
+    
+    new SlashCommandBuilder()
+    .setName('ganglist')
+    .setDescription('Show all registered factions.')
 
 ].map(command => command.toJSON());
 
@@ -1239,6 +1243,90 @@ client.on('interactionCreate', async interaction => {
 
 });
 
+    // ==================================================
+    // /ganglist
+    // ==================================================
+
+    if (interaction.commandName === 'ganglist') {
+
+        const gangs = Object.values(GANGS).filter(
+            gang =>
+                gang.leaderRole &&
+                gang.gangRole
+        );
+
+        if (gangs.length === 0) {
+
+            return interaction.reply({
+                content:
+                    '🏴 There are currently no registered factions.',
+                ephemeral: true
+            });
+
+        }
+
+        const gangList = gangs
+            .map((gang, index) => {
+
+                const leaderRole =
+                    interaction.guild.roles.cache.get(
+                        gang.leaderRole
+                    );
+
+                const gangRole =
+                    interaction.guild.roles.cache.get(
+                        gang.gangRole
+                    );
+
+                return (
+                    `**${index + 1}. ${gang.name}**\n` +
+                    `👑 Leader Role: ${
+                        leaderRole
+                            ? `<@&${gang.leaderRole}>`
+                            : 'Not Found'
+                    }\n` +
+                    `👥 Members: ${
+                        gangRole
+                            ? gangRole.members.size
+                            : 0
+                    }`
+                );
+
+            })
+            .join('\n\n');
+
+        const gangListEmbed = {
+
+            color: 0xFF8C00,
+
+            title:
+                '🏴 LYNWOOD FACTIONS • GANG LIST',
+
+            description:
+                'Here is the current list of registered factions.\n\n' +
+                gangList,
+
+            footer: {
+                text:
+                    `Lynwood Factions • ${gangs.length} Registered Faction${
+                        gangs.length === 1 ? '' : 's'
+                    }`
+            },
+
+            timestamp:
+                new Date().toISOString()
+
+        };
+
+        return interaction.reply({
+
+            embeds: [gangListEmbed],
+
+            ephemeral: true
+
+        });
+
+    }
 
 // ======================================================
 // AUTO-STICKY MESSAGE SYSTEM
@@ -1318,7 +1406,7 @@ client.on('messageCreate', async message => {
                     inline: false
                 },
                 {
-                    name: '💎 Gang Tier Purchased',
+                    name: '💲 Gang Tier Purchased',
                     value: 'The gang tier you purchased.',
                     inline: false
                 },
