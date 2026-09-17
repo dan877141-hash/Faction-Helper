@@ -37,6 +37,131 @@ function saveSticky(data) {
 
 const stickyMessages = loadSticky();
 
+// ======================================================
+// FACTION STRIKE SYSTEM
+// ======================================================
+
+const STRIKE_FILE = path.join(__dirname, 'factionStrikes.json');
+
+function loadFactionStrikes() {
+
+    if (!fs.existsSync(STRIKE_FILE)) {
+        return {};
+    }
+
+    try {
+
+        return JSON.parse(
+            fs.readFileSync(STRIKE_FILE, 'utf8')
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not read factionStrikes.json:',
+            error
+        );
+
+        return {};
+
+    }
+
+}
+
+function saveFactionStrikes(data) {
+
+    fs.writeFileSync(
+        STRIKE_FILE,
+        JSON.stringify(data, null, 2)
+    );
+
+}
+
+const factionStrikes = loadFactionStrikes();
+
+// ======================================================
+// FACTION MONEY SYSTEM
+// ======================================================
+
+const MONEY_FILE = path.join(__dirname, 'factionMoney.json');
+
+function loadFactionMoney() {
+
+    if (!fs.existsSync(MONEY_FILE)) {
+        return {};
+    }
+
+    try {
+
+        return JSON.parse(
+            fs.readFileSync(MONEY_FILE, 'utf8')
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not read factionMoney.json:',
+            error
+        );
+
+        return {};
+
+    }
+
+}
+
+function saveFactionMoney(data) {
+
+    fs.writeFileSync(
+        MONEY_FILE,
+        JSON.stringify(data, null, 2)
+    );
+
+}
+
+const factionMoney = loadFactionMoney();
+
+// ======================================================
+// FACTION TRANSACTION SYSTEM
+// ======================================================
+
+const TRANSACTION_FILE = path.join(__dirname, 'factionTransactions.json');
+
+function loadFactionTransactions() {
+
+    if (!fs.existsSync(TRANSACTION_FILE)) {
+        return {};
+    }
+
+    try {
+
+        return JSON.parse(
+            fs.readFileSync(TRANSACTION_FILE, 'utf8')
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not read factionTransactions.json:',
+            error
+        );
+
+        return {};
+
+    }
+
+}
+
+function saveFactionTransactions(data) {
+
+    fs.writeFileSync(
+        TRANSACTION_FILE,
+        JSON.stringify(data, null, 2)
+    );
+
+}
+
+const factionTransactions = loadFactionTransactions();
 
 // ======================================================
 // BOT SETUP
@@ -82,79 +207,105 @@ const GANGS = {
     Admin: {
         name: 'Admin',
         leaderRole: '1549649301397970974',
-        gangRole: '1549649573604233246'
+        gangRole: '1549649573604233246',
+         block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     FactionNAme: {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     FactionNAme: {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     'FactionNAme': {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     FactionNAme: {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     FactionNAme: {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
     
     FactionNAme: {
         name: 'NAme',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
     
     FactionNAme: {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     FactionNAme: {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     'FactionNAme': {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     FactionNAme: {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     FactionNAme: {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     },
 
     FactionNAme: {
         name: 'Name',
         leaderRole: '',
-        gangRole: ''
+        gangRole: '',
+        block: 'Not Assigned',
+        tier: 'Not Assigned'
     }
 };
 
@@ -208,6 +359,23 @@ const commands = [
     .setName('ganglist')
     .setDescription('Show all registered factions.'),
 
+        new SlashCommandBuilder()
+        .setName('activity')
+        .setDescription('Record faction activity.')
+        .addStringOption(option =>
+            option
+                .setName('faction')
+                .setDescription('The faction this activity belongs to.')
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName('action')
+                .setDescription('Describe the faction activity.')
+                .setRequired(true)
+                .setMaxLength(1000)
+        ),
+
     new SlashCommandBuilder()
         .setName('gangleader')
         .setDescription('Show the leader of a registered faction.'),
@@ -220,12 +388,190 @@ const commands = [
                 .setName('user')
                 .setDescription('The member you want to transfer leadership to.')
                 .setRequired(true)
-        )
+        ),
 
-    
+        new SlashCommandBuilder()
+    .setName('gangblock')
+    .setDescription('Assign or change a faction block.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction you want to assign a block to.')
+            .setRequired(true)
+    )
+    .addStringOption(option =>
+        option
+            .setName('block')
+            .setDescription('The block/location to assign.')
+            .setRequired(true)
+            .setMaxLength(100)
+    ),
+
+   new SlashCommandBuilder()
+    .setName('gangtier')
+    .setDescription('Assign or change a faction tier.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction you want to assign a tier to.')
+            .setRequired(true)
+    )
+    .addStringOption(option =>
+        option
+            .setName('tier')
+            .setDescription('The tier to assign to the faction.')
+            .setRequired(true)
+            .setMaxLength(50)
+    ),
+
+    new SlashCommandBuilder()
+    .setName('gangrename')
+    .setDescription('Rename a faction.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction you want to rename.')
+            .setRequired(true)
+    )
+    .addStringOption(option =>
+        option
+            .setName('name')
+            .setDescription('The new faction name.')
+            .setRequired(true)
+            .setMaxLength(50)
+    ),
+
+new SlashCommandBuilder()
+    .setName('strikeadd')
+    .setDescription('Add a strike to a faction.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction receiving the strike.')
+            .setRequired(true)
+    )
+    .addStringOption(option =>
+        option
+            .setName('reason')
+            .setDescription('Reason for the faction strike.')
+            .setRequired(true)
+            .setMaxLength(500)
+    ),
+
+new SlashCommandBuilder()
+    .setName('strikeinfo')
+    .setDescription('View a faction\'s current strikes.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction to view.')
+            .setRequired(true)
+    ),
+
+new SlashCommandBuilder()
+    .setName('strikelist')
+    .setDescription('View factions with active strikes.'),
+
+new SlashCommandBuilder()
+    .setName('strikehistory')
+    .setDescription('View previous faction strikes.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction to view strike history for.')
+            .setRequired(true)
+    ),
+
+new SlashCommandBuilder()
+    .setName('strikeremove')
+    .setDescription('Remove a strike from a faction.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction to remove the strike from.')
+            .setRequired(true)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName('strike')
+            .setDescription('The strike number to remove.')
+            .setRequired(true)
+            .setMinValue(1)
+    ),
+
+new SlashCommandBuilder()
+    .setName('strikeclear')
+    .setDescription('Clear all strikes from a faction.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction whose strikes you want to clear.')
+            .setRequired(true)
+    ),
+
+new SlashCommandBuilder()
+    .setName('gangmoney')
+    .setDescription('View your faction money.'),
+
+new SlashCommandBuilder()
+    .setName('gangpayment')
+    .setDescription('Record a payment to a faction.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction receiving the payment.')
+            .setRequired(true)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName('amount')
+            .setDescription('The amount being paid.')
+            .setRequired(true)
+            .setMinValue(1)
+    )
+    .addStringOption(option =>
+        option
+            .setName('reason')
+            .setDescription('Reason for the payment.')
+            .setRequired(true)
+    ),
+
+new SlashCommandBuilder()
+    .setName('gangpayout')
+    .setDescription('Record a payout from a faction.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction making the payout.')
+            .setRequired(true)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName('amount')
+            .setDescription('The amount being paid out.')
+            .setRequired(true)
+            .setMinValue(1)
+    )
+    .addStringOption(option =>
+        option
+            .setName('reason')
+            .setDescription('Reason for the payout.')
+            .setRequired(true)
+    ),
+
+new SlashCommandBuilder()
+    .setName('gangtransactions')
+    .setDescription('View faction transaction history.')
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction to view transactions for.')
+            .setRequired(true)
+    ),
+
+
 
 ].map(command => command.toJSON());
-
 
 // ======================================================
 // REGISTER SLASH COMMANDS
@@ -1248,6 +1594,8 @@ client.on('interactionCreate', async interaction => {
             content:
                 `🏴 **${leaderGang.name} Gang Information**\n\n` +
                 `👑 **Leader:** ${interaction.user}\n` +
+                `📍 **Block:** ${leaderGang.block || 'Not Assigned'}\n` +
+                `🏆 **Tier:** ${leaderGang.tier || 'Not Assigned'}\n` +
                 `👥 **Members:** ${members.size}\n\n` +
                 `**Gang Members:**\n${memberList}`,
 
@@ -1639,6 +1987,1691 @@ client.on('interactionCreate', async interaction => {
         }
 
     }
+
+// ==================================================
+// /gangblock
+// ==================================================
+
+if (interaction.commandName === 'gangblock') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ROLE
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+
+    if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/gangblock`.\n\n' +
+                'Only **High Faction Staff** can assign or change faction blocks.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const newBlock =
+        interaction.options.getString('block');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factionEntry = Object.entries(GANGS).find(
+        ([key, gang]) =>
+            gang.name.toLowerCase() === factionName.toLowerCase()
+    );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [gangKey, gang] = factionEntry;
+
+    // ----------------------------------------------
+    // SAVE OLD BLOCK
+    // ----------------------------------------------
+
+    const oldBlock =
+        gang.block || 'Not Assigned';
+
+    // ----------------------------------------------
+    // UPDATE BLOCK
+    // ----------------------------------------------
+
+    gang.block = newBlock;
+
+    // ----------------------------------------------
+    // CONFIRM
+    // ----------------------------------------------
+
+    return interaction.reply({
+        content:
+            `🏘️ **Faction Block Updated**\n\n` +
+            `🏴 **Faction:** ${gang.name}\n` +
+            `📍 **Previous Block:** ${oldBlock}\n` +
+            `🏡 **New Block:** ${newBlock}\n\n` +
+            `❤️ **Changed By:** ${interaction.user}`,
+        ephemeral: true
+    });
+
+}
+
+    // ==================================================
+    // /gangtier
+    // ==================================================
+
+if (interaction.commandName === 'gangtier') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ROLE
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+
+    if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '🔒 You do not have permission to use `/gangtier`.\n\n' +
+                'Only **Staff** can assign or change faction tiers.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const newTier =
+        interaction.options.getString('tier');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factionEntry = Object.entries(GANGS).find(
+        ([key, gang]) =>
+            gang.name.toLowerCase() === factionName.toLowerCase()
+    );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [gangKey, gang] = factionEntry;
+
+    // ----------------------------------------------
+    // SAVE OLD TIER
+    // ----------------------------------------------
+
+    const oldTier =
+        gang.tier || 'Not Assigned';
+
+    // ----------------------------------------------
+    // UPDATE TIER
+    // ----------------------------------------------
+
+    gang.tier = newTier;
+
+    // ----------------------------------------------
+    // CONFIRM
+    // ----------------------------------------------
+
+    return interaction.reply({
+        content:
+            `✅ **Faction Tier Updated**\n\n` +
+            `🏴 **Faction:** ${gang.name}\n` +
+            `🏆 **Previous Tier:** ${oldTier}\n` +
+            `🔐 **New Tier:** ${newTier}\n\n` +
+            `👤 **Changed By:** ${interaction.user}`,
+        ephemeral: true
+    });
+
+}
+
+        // ==================================================
+        // /gangtransfer
+        // ==================================================
+
+if (interaction.commandName === 'gangtransfer') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ROLE
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID = '1478512230734499932';
+
+    if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/gangtransfer`.\n\n' +
+                'Only **High Faction Staff** can transfer factions.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const newLeader =
+        interaction.options.getMember('leader');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factionEntry = Object.entries(GANGS).find(
+        ([key, gang]) =>
+            gang.name.toLowerCase() === factionName.toLowerCase()
+    );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [gangKey, gang] = factionEntry;
+
+    // ----------------------------------------------
+    // CHECK NEW LEADER
+    // ----------------------------------------------
+
+    if (!newLeader) {
+
+        return interaction.reply({
+            content:
+                '❌ I could not find that member in the server.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CHECK IF SAME PERSON
+    // ----------------------------------------------
+
+    if (newLeader.id === interaction.user.id) {
+
+        return interaction.reply({
+            content:
+                '❌ You cannot transfer the faction to yourself.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // FIND LEADER ROLE
+    // ----------------------------------------------
+
+    const leaderRole =
+        interaction.guild.roles.cache.get(
+            gang.leaderRole
+        );
+
+    if (!leaderRole) {
+
+        return interaction.reply({
+            content:
+                `❌ The **${gang.name}** Leader role could not be found.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CHECK BOT ROLE HIERARCHY
+    // ----------------------------------------------
+
+    if (
+        leaderRole.position >=
+        interaction.guild.members.me.roles.highest.position
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ I cannot manage the Leader role because my bot role is not high enough in the Discord role hierarchy.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // REMOVE LEADER ROLE FROM CURRENT LEADERS
+    // ----------------------------------------------
+
+    const currentLeaders =
+        interaction.guild.members.cache.filter(
+            member =>
+                member.roles.cache.has(gang.leaderRole)
+        );
+
+    try {
+
+        for (const member of currentLeaders.values()) {
+
+            await member.roles.remove(
+                leaderRole,
+                `Faction transfer for ${gang.name} by ${interaction.user.tag}`
+            );
+
+        }
+
+        // ------------------------------------------
+        // GIVE LEADER ROLE TO NEW LEADER
+        // ------------------------------------------
+
+        await newLeader.roles.add(
+            leaderRole,
+            `Transferred ${gang.name} leadership to ${newLeader.user.tag}`
+        );
+
+        // ------------------------------------------
+        // SUCCESS MESSAGE
+        // ------------------------------------------
+
+        return interaction.reply({
+            content:
+                `✍️ **Faction Transferred Successfully**\n\n` +
+                `🏴 **Faction:** ${gang.name}\n` +
+                `👑 **New Leader:** ${newLeader}\n` +
+                `📍 **Block:** ${gang.block || 'Not Assigned'}\n` +
+                `🏆 **Tier:** ${gang.tier || 'Not Assigned'}\n\n` +
+                `👤 **Transferred By:** ${interaction.user}`,
+            ephemeral: true
+        });
+
+    } catch (error) {
+
+        console.error(
+            '❌ Gang transfer error:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not complete the faction transfer. Check the bot permissions and role hierarchy.',
+            ephemeral: true
+        });
+
+    }
+
+}
+
+       // ==================================================
+       // /gangrename
+       // ==================================================
+
+if (interaction.commandName === 'gangrename') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ROLE
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+
+    if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '🔒 You do not have permission to use `/gangrename`.\n\n' +
+                'Only **High Faction Staff** can rename factions.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const newName =
+        interaction.options.getString('name');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factionEntry = Object.entries(GANGS).find(
+        ([key, gang]) =>
+            gang.name.toLowerCase() === factionName.toLowerCase()
+    );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `🚫 I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [gangKey, gang] = factionEntry;
+
+    // ----------------------------------------------
+    // CHECK IF NAME ALREADY EXISTS
+    // ----------------------------------------------
+
+    const nameAlreadyExists = Object.values(GANGS).some(
+        existingGang =>
+            existingGang.name.toLowerCase() === newName.toLowerCase()
+    );
+
+    if (nameAlreadyExists) {
+
+        return interaction.reply({
+            content:
+                `🔐 A faction named **${newName}** already exists.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // SAVE OLD NAME
+    // ----------------------------------------------
+
+    const oldName = gang.name;
+
+    // ----------------------------------------------
+    // RENAME FACTION
+    // ----------------------------------------------
+
+    gang.name = newName;
+
+    // ----------------------------------------------
+    // CONFIRM
+    // ----------------------------------------------
+
+    return interaction.reply({
+        content:
+            `✔️ **Faction Renamed Successfully**\n\n` +
+            `🏴 **Previous Name:** ${oldName}\n` +
+            `🏴 **New Name:** ${newName}\n` +
+            `📍 **Block:** ${gang.block || 'Not Assigned'}\n` +
+            `🏆 **Tier:** ${gang.tier || 'Not Assigned'}\n\n` +
+            `⚙️ **Renamed By:** ${interaction.user}`,
+        ephemeral: true
+    });
+
+}
+
+// ==================================================
+// /strikeadd
+// ==================================================
+
+if (interaction.commandName === 'strikeadd') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ROLE
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+
+    if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/strikeadd`.\n\n' +
+                'Only **High Faction Staff** can add faction strikes.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const reason =
+        interaction.options.getString('reason');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factionEntry = Object.entries(GANGS).find(
+        ([key, gang]) =>
+            gang.name.toLowerCase() === factionName.toLowerCase()
+    );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [gangKey, gang] = factionEntry;
+
+    // ----------------------------------------------
+    // CREATE STRIKES ARRAY
+    // ----------------------------------------------
+
+    if (!gang.strikes) {
+        gang.strikes = [];
+    }
+
+    // ----------------------------------------------
+    // ADD STRIKE
+    // ----------------------------------------------
+
+    const strike = {
+        reason: reason,
+        addedBy: interaction.user.id,
+        addedByTag: interaction.user.tag,
+        addedAt: new Date().toISOString()
+    };
+
+    gang.strikes.push(strike);
+
+    const strikeNumber = gang.strikes.length;
+
+    // ----------------------------------------------
+    // CONFIRM
+    // ----------------------------------------------
+
+    return interaction.reply({
+        content:
+            `⚠️ **Faction Strike Added**\n\n` +
+            `🏴 **Faction:** ${gang.name}\n` +
+            `❌ **Strike:** #${strikeNumber}\n` +
+            `📝 **Reason:** ${reason}\n` +
+            `👤 **Added By:** ${interaction.user}\n` +
+            `📅 **Date:** <t:${Math.floor(Date.now() / 1000)}:F>`,
+        ephemeral: true
+    });
+
+}
+
+// ==================================================
+// /strikeinfo
+// ==================================================
+
+if (interaction.commandName === 'strikeinfo') {
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const factionEntry = Object.entries(GANGS).find(
+        ([key, gang]) =>
+            gang.name.toLowerCase() === factionName.toLowerCase()
+    );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [gangKey, gang] = factionEntry;
+
+    const strikes = gang.strikes || [];
+
+    if (strikes.length === 0) {
+
+        return interaction.reply({
+            content:
+                `✅ **${gang.name}** currently has no active strikes.`,
+            ephemeral: true
+        });
+
+    }
+
+    let strikeList = '';
+
+    strikes.forEach((strike, index) => {
+
+        const timestamp =
+            Math.floor(
+                new Date(strike.addedAt).getTime() / 1000
+            );
+
+        strikeList +=
+            `**Strike #${index + 1}**\n` +
+            `📝 **Reason:** ${strike.reason}\n` +
+            `👤 **Added By:** <@${strike.addedBy}>\n` +
+            `📅 **Date:** <t:${timestamp}:F>\n\n`;
+
+    });
+
+    const embed = {
+
+        color: 0xED4245,
+
+        title:
+            `⚠️ ${gang.name} • Strike Information`,
+
+        description:
+            `**Active Strikes:** ${strikes.length}\n\n` +
+            strikeList,
+
+        footer: {
+            text:
+                `Lynwood Factions • ${gang.name}`
+        },
+
+        timestamp:
+            new Date().toISOString()
+
+    };
+
+    return interaction.reply({
+        embeds: [embed],
+        ephemeral: true
+    });
+
+}
+
+// ==================================================
+// /strikelist
+// ==================================================
+
+if (interaction.commandName === 'strikelist') {
+
+    const factionsWithStrikes =
+        Object.values(GANGS).filter(
+            gang =>
+                gang.strikes &&
+                gang.strikes.length > 0
+        );
+
+    if (factionsWithStrikes.length === 0) {
+
+        return interaction.reply({
+            content:
+                '✅ There are currently no factions with active strikes.',
+            ephemeral: true
+        });
+
+    }
+
+    let strikeList = '';
+
+    factionsWithStrikes.forEach((gang, index) => {
+
+        strikeList +=
+            `**${index + 1}. ${gang.name}**\n` +
+            `❌ Active Strikes: **${gang.strikes.length}**\n` +
+            `📍 Block: ${gang.block || 'Not Assigned'}\n\n`;
+
+    });
+
+    const embed = {
+
+        color: 0xFF8C00,
+
+        title:
+            '❌ ACTIVE STRIKES',
+
+        description:
+            `Factions currently carrying active strikes:\n\n` +
+            strikeList,
+
+        footer: {
+            text:
+                `Lynwood Factions • ${factionsWithStrikes.length} Faction${factionsWithStrikes.length === 1 ? '' : 's'}`
+        },
+
+        timestamp:
+            new Date().toISOString()
+
+    };
+
+    return interaction.reply({
+        embeds: [embed],
+        ephemeral: true
+    });
+
+}
+
+// ==================================================
+// /strikehistory
+// ==================================================
+
+if (interaction.commandName === 'strikehistory') {
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const factionEntry = Object.entries(GANGS).find(
+        ([key, gang]) =>
+            gang.name.toLowerCase() === factionName.toLowerCase()
+    );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [gangKey, gang] = factionEntry;
+
+    const strikes = gang.strikes || [];
+
+    if (strikes.length === 0) {
+
+        return interaction.reply({
+            content:
+                `📋 **${gang.name}** has no recorded strike history.`,
+            ephemeral: true
+        });
+
+    }
+
+    let history = '';
+
+    strikes.forEach((strike, index) => {
+
+        const timestamp =
+            Math.floor(
+                new Date(strike.addedAt).getTime() / 1000
+            );
+
+        history +=
+            `**#${index + 1} — Strike**\n` +
+            `📝 **Reason:** ${strike.reason}\n` +
+            `👤 **Added By:** <@${strike.addedBy}>\n` +
+            `📅 **Date:** <t:${timestamp}:F>\n\n`;
+
+    });
+
+    if (history.length > 3800) {
+
+        history =
+            history.substring(0, 3800) +
+            '\n...and more history.';
+
+    }
+
+    const embed = {
+
+        color: 0x5865F2,
+
+        title:
+            `📋 ${gang.name} • Strike History`,
+
+        description:
+            `**Total Recorded Strikes:** ${strikes.length}\n\n` +
+            history,
+
+        footer: {
+            text:
+                `Strike History`
+        },
+
+        timestamp:
+            new Date().toISOString()
+
+    };
+
+    return interaction.reply({
+        embeds: [embed],
+        ephemeral: true
+    });
+
+}
+
+// ==================================================
+// /strikeremove
+// ==================================================
+
+if (interaction.commandName === 'strikeremove') {
+
+    const FACTION_STAFF_ROLE_ID = '1550018347804917760';
+
+    // ----------------------------------------------
+    // CHECK FACTION STAFF
+    // ----------------------------------------------
+
+    if (!interaction.member.roles.cache.has(1550018347804917760)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/strikeremove`.\n\n' +
+                'Only **Faction Staff** can remove faction strikes.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const strikeNumber =
+        interaction.options.getInteger('strike');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const faction = Object.values(GANGS).find(
+        gang =>
+            gang.name.toLowerCase() ===
+            factionName.toLowerCase()
+    );
+
+    if (!faction) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // STRIKE DATA
+    // ----------------------------------------------
+    // This expects your strike system to store strikes
+    // in a factionStrikes object.
+    // ----------------------------------------------
+
+    if (!factionStrikes[faction.name]) {
+
+        return interaction.reply({
+            content:
+                `⚠️ **${faction.name}** currently has no strikes.`,
+            ephemeral: true
+        });
+
+    }
+
+    const strikes =
+        factionStrikes[faction.name];
+
+    // ----------------------------------------------
+    // CHECK STRIKE EXISTS
+    // ----------------------------------------------
+
+    if (
+        strikeNumber < 1 ||
+        strikeNumber > strikes.length
+    ) {
+
+        return interaction.reply({
+            content:
+                `❌ **${faction.name}** does not have Strike #${strikeNumber}.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // REMOVE STRIKE
+    // ----------------------------------------------
+
+    const removedStrike =
+        strikes.splice(strikeNumber - 1, 1)[0];
+
+    // ----------------------------------------------
+    // SAVE STRIKES
+    // ----------------------------------------------
+
+    saveFactionStrikes(factionStrikes);
+
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
+
+    await interaction.reply({
+        content:
+            `✅ **Strike #${strikeNumber}** has been removed from **${faction.name}**.\n\n` +
+            `👮 **Removed By:** ${interaction.user}\n` +
+            `🏴 **Faction:** ${faction.name}` +
+            `\n⌛ **Remaining Strikes:** ${strikes.length}`,
+        ephemeral: true
+    });
+
+    console.log(
+        `[STRIKE REMOVE] ${interaction.user.tag} removed Strike #${strikeNumber} from ${faction.name}`
+    );
+
+}
+
+// ==================================================
+// /strikeclear
+// ==================================================
+
+if (interaction.commandName === 'strikeclear') {
+
+    const FACTION_STAFF_ROLE_ID = '1550018347804917760';
+
+    // ----------------------------------------------
+    // CHECK FACTION STAFF
+    // ----------------------------------------------
+
+    if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/strikeclear`.\n\n' +
+                'Only **Faction Staff** can clear faction strikes.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET FACTION
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const faction = Object.values(GANGS).find(
+        gang =>
+            gang.name.toLowerCase() ===
+            factionName.toLowerCase()
+    );
+
+    if (!faction) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CHECK STRIKES
+    // ----------------------------------------------
+
+    if (
+        !factionStrikes[faction.name] ||
+        factionStrikes[faction.name].length === 0
+    ) {
+
+        return interaction.reply({
+            content:
+                `⚠️ **${faction.name}** currently has no active strikes.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // COUNT STRIKES
+    // ----------------------------------------------
+
+    const removedCount =
+        factionStrikes[faction.name].length;
+
+    // ----------------------------------------------
+    // CLEAR STRIKES
+    // ----------------------------------------------
+
+    factionStrikes[faction.name] = [];
+
+    saveFactionStrikes(factionStrikes);
+
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
+
+    await interaction.reply({
+        content:
+            `✅ All strikes have been cleared from **${faction.name}**.\n\n` +
+            `🏴 **Faction:** ${faction.name}\n` +
+            `🗑️ **Strikes Removed:** ${removedCount}\n` +
+            `👮 **Cleared By:** ${interaction.user}`,
+        ephemeral: true
+    });
+
+    console.log(
+        `[STRIKE CLEAR] ${interaction.user.tag} cleared ${removedCount} strike(s) from ${faction.name}`
+    );
+
+}
+
+// ==================================================
+// /gangmoney
+// ==================================================
+
+if (interaction.commandName === 'gangmoney') {
+
+    const leaderGang =
+        getLeaderGang(interaction.member);
+
+    // ----------------------------------------------
+    // CHECK LEADER
+    // ----------------------------------------------
+
+    if (!leaderGang) {
+
+        return interaction.reply({
+            content:
+                '❌ You are not registered as a faction leader.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // INITIALIZE FACTION MONEY
+    // ----------------------------------------------
+
+    if (
+        typeof factionMoney[leaderGang.name] !== 'number'
+    ) {
+
+        factionMoney[leaderGang.name] = 0;
+
+        saveFactionMoney(factionMoney);
+
+    }
+
+    const money =
+        factionMoney[leaderGang.name];
+
+    // ----------------------------------------------
+    // FORMAT MONEY
+    // ----------------------------------------------
+
+    const formattedMoney =
+        money.toLocaleString('en-US');
+
+    // ----------------------------------------------
+    // SEND MONEY INFO
+    // ----------------------------------------------
+
+    return interaction.reply({
+        content:
+            `💰 **${leaderGang.name} Faction Money**\n\n` +
+            `🏴 **Faction:** ${leaderGang.name}\n` +
+            `💵 **Balance:** $${formattedMoney}`,
+        ephemeral: true
+    });
+
+}
+
+// ==================================================
+// /gangpayment
+// ==================================================
+
+if (interaction.commandName === 'gangpayment') {
+
+    const FACTION_STAFF_ROLE_ID = '1550018347804917760';
+
+    // ----------------------------------------------
+    // CHECK FACTION STAFF
+    // ----------------------------------------------
+
+    if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/gangpayment`.\n\n' +
+                'Only **Faction Staff** can record faction payments.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const amount =
+        interaction.options.getInteger('amount');
+
+    const reason =
+        interaction.options.getString('reason');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const faction = Object.values(GANGS).find(
+        gang =>
+            gang.name.toLowerCase() ===
+            factionName.toLowerCase()
+    );
+
+    if (!faction) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // INITIALIZE MONEY
+    // ----------------------------------------------
+
+    if (
+        typeof factionMoney[faction.name] !== 'number'
+    ) {
+
+        factionMoney[faction.name] = 0;
+
+    }
+
+    // ----------------------------------------------
+    // ADD PAYMENT
+    // ----------------------------------------------
+
+    factionMoney[faction.name] += amount;
+
+    saveFactionMoney(factionMoney);
+
+// ----------------------------------------------
+// SAVE TRANSACTION
+// ----------------------------------------------
+
+if (!factionTransactions[faction.name]) {
+    factionTransactions[faction.name] = [];
+}
+
+factionTransactions[faction.name].push({
+
+    type: 'Payment',
+
+    amount: amount,
+
+    reason: reason,
+
+    userId: interaction.user.id,
+
+    timestamp: new Date().toISOString()
+
+});
+
+saveFactionTransactions(factionTransactions);
+
+    const newBalance =
+        factionMoney[faction.name];
+
+    // ----------------------------------------------
+    // FORMAT MONEY
+    // ----------------------------------------------
+
+    const formattedAmount =
+        amount.toLocaleString('en-US');
+
+    const formattedBalance =
+        newBalance.toLocaleString('en-US');
+
+    // ----------------------------------------------
+    // SUCCESS MESSAGE
+    // ----------------------------------------------
+
+    return interaction.reply({
+        content:
+            `✔️ **Faction Payment Recorded**\n\n` +
+            `🏴 **Faction:** ${faction.name}\n` +
+            `💵 **Payment:** +$${formattedAmount}\n` +
+            `💰 **New Balance:** $${formattedBalance}\n` +
+            `✍️ **Reason:** ${reason}\n` +
+            `🔒 **Recorded By:** ${interaction.user}`,
+        ephemeral: true
+    });
+
+}
+
+// ==================================================
+// /gangpayout
+// ==================================================
+
+if (interaction.commandName === 'gangpayout') {
+
+    const FACTION_STAFF_ROLE_ID = '1550018347804917760';
+
+    // ----------------------------------------------
+    // CHECK FACTION STAFF
+    // ----------------------------------------------
+
+    if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/gangpayout`.\n\n' +
+                'Only **Faction Staff** can record faction payouts.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const amount =
+        interaction.options.getInteger('amount');
+
+    const reason =
+        interaction.options.getString('reason');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const faction = Object.values(GANGS).find(
+        gang =>
+            gang.name.toLowerCase() ===
+            factionName.toLowerCase()
+    );
+
+    if (!faction) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // INITIALIZE MONEY
+    // ----------------------------------------------
+
+    if (
+        typeof factionMoney[faction.name] !== 'number'
+    ) {
+
+        factionMoney[faction.name] = 0;
+
+        saveFactionMoney(factionMoney);
+
+    // ----------------------------------------------
+    // SAVE TRANSACTION
+    // ----------------------------------------------
+
+if (!factionTransactions[faction.name]) {
+    factionTransactions[faction.name] = [];
+}
+
+factionTransactions[faction.name].push({
+
+    type: 'Payout',
+
+    amount: amount,
+
+    reason: reason,
+
+    userId: interaction.user.id,
+
+    timestamp: new Date().toISOString()
+
+});
+
+saveFactionTransactions(factionTransactions);
+
+    }
+
+    const currentBalance =
+        factionMoney[faction.name];
+
+    // ----------------------------------------------
+    // CHECK BALANCE
+    // ----------------------------------------------
+
+    if (amount > currentBalance) {
+
+        return interaction.reply({
+            content:
+                `❌ **Insufficient faction funds.**\n\n` +
+                `🏴 **Faction:** ${faction.name}\n` +
+                `💰 **Current Balance:** $${currentBalance.toLocaleString('en-US')}\n` +
+                `💸 **Requested Payout:** $${amount.toLocaleString('en-US')}\n\n` +
+                `The payout cannot be greater than the faction's current balance.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // REMOVE PAYOUT
+    // ----------------------------------------------
+
+    factionMoney[faction.name] -= amount;
+
+    saveFactionMoney(factionMoney);
+
+    const newBalance =
+        factionMoney[faction.name];
+
+    // ----------------------------------------------
+    // FORMAT MONEY
+    // ----------------------------------------------
+
+    const formattedAmount =
+        amount.toLocaleString('en-US');
+
+    const formattedBalance =
+        newBalance.toLocaleString('en-US');
+
+    // ----------------------------------------------
+    // SUCCESS MESSAGE
+    // ----------------------------------------------
+
+    return interaction.reply({
+        content:
+            `☑️ **Faction Payout Recorded**\n\n` +
+            `🏴 **Faction:** ${faction.name}\n` +
+            `💸 **Payout:** -$${formattedAmount}\n` +
+            `💰 **New Balance:** $${formattedBalance}\n` +
+            `📝 **Reason:** ${reason}\n` +
+            `⚙️ **Recorded By:** ${interaction.user}`,
+        ephemeral: true
+    });
+
+}
+
+// ==================================================
+// /gangtransactions
+// ==================================================
+
+if (interaction.commandName === 'gangtransactions') {
+
+    const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+
+    // ----------------------------------------------
+    // CHECK FACTION STAFF
+    // ----------------------------------------------
+
+    if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/gangtransactions`.\n\n' +
+                'Only **Faction Staff** can view faction transactions.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET FACTION
+    // ----------------------------------------------
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    const faction = Object.values(GANGS).find(
+        gang =>
+            gang.name.toLowerCase() ===
+            factionName.toLowerCase()
+    );
+
+    if (!faction) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET TRANSACTIONS
+    // ----------------------------------------------
+
+    const transactions =
+        factionTransactions[faction.name] || [];
+
+    // ----------------------------------------------
+    // NO TRANSACTIONS
+    // ----------------------------------------------
+
+    if (transactions.length === 0) {
+
+        return interaction.reply({
+            content:
+                `📋 **${faction.name}** currently has no recorded transactions.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET MOST RECENT 20
+    // ----------------------------------------------
+
+    const recentTransactions =
+        transactions.slice(-20).reverse();
+
+    // ----------------------------------------------
+    // BUILD TRANSACTION LIST
+    // ----------------------------------------------
+
+    const transactionList =
+        recentTransactions.map((transaction, index) => {
+
+            const emoji =
+                transaction.type === 'Payment'
+                    ? '💵'
+                    : '💸';
+
+            const sign =
+                transaction.type === 'Payment'
+                    ? '+'
+                    : '-';
+
+            return (
+                `**${index + 1}. ${emoji} ${transaction.type}**\n` +
+                `💰 **Amount:** ${sign}$${transaction.amount.toLocaleString('en-US')}\n` +
+                `📝 **Reason:** ${transaction.reason}\n` +
+                `👮 **Recorded By:** <@${transaction.userId}>\n` +
+                `🕒 **Date:** <t:${Math.floor(new Date(transaction.timestamp).getTime() / 1000)}:f>`
+            );
+
+        }).join('\n\n');
+
+    // ----------------------------------------------
+    // CURRENT BALANCE
+    // ----------------------------------------------
+
+    const balance =
+        typeof factionMoney[faction.name] === 'number'
+            ? factionMoney[faction.name]
+            : 0;
+
+    // ----------------------------------------------
+    // SEND TRANSACTIONS
+    // ----------------------------------------------
+
+    const transactionEmbed = {
+
+        color: 0xFF8C00,
+
+        title:
+            `💰 ${faction.name} • TRANSACTION HISTORY`,
+
+        description:
+            `**Current Balance:** $${balance.toLocaleString('en-US')}\n\n` +
+            transactionList,
+
+        footer: {
+            text:
+                `Lynwood Factions • Showing ${recentTransactions.length} Most Recent Transaction${recentTransactions.length === 1 ? '' : 's'}`
+        },
+
+        timestamp:
+            new Date().toISOString()
+
+    };
+
+    return interaction.reply({
+
+        embeds: [
+            transactionEmbed
+        ],
+
+        ephemeral: true
+
+    });
+
+}
+
+// ======================================================
+// /activity
+// ======================================================
+
+if (interaction.commandName === 'activity') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+
+    if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/activity`.\n\n' +
+                'Only **Faction Staff** can record faction activity.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET INFORMATION
+    // ----------------------------------------------
+
+    const faction =
+        interaction.options.getString('faction');
+
+    const action =
+        interaction.options.getString('action');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factionData = Object.values(GANGS).find(
+        gang =>
+            gang.name.toLowerCase() === faction.toLowerCase()
+    );
+
+    if (!factionData) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${faction}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // ACTIVITY FILE
+    // ----------------------------------------------
+
+    const ACTIVITY_FILE =
+        path.join(__dirname, 'activity.json');
+
+    let activities = [];
+
+    if (fs.existsSync(ACTIVITY_FILE)) {
+
+        try {
+
+            activities = JSON.parse(
+                fs.readFileSync(
+                    ACTIVITY_FILE,
+                    'utf8'
+                )
+            );
+
+            if (!Array.isArray(activities)) {
+                activities = [];
+            }
+
+        } catch (error) {
+
+            console.error(
+                '❌ Could not read activity.json:',
+                error
+            );
+
+            activities = [];
+
+        }
+
+    }
+
+    // ----------------------------------------------
+    // CREATE ACTIVITY RECORD
+    // ----------------------------------------------
+
+    const activityRecord = {
+
+        id: Date.now().toString(),
+
+        faction: factionData.name,
+
+        recordedBy: {
+            id: interaction.user.id,
+            username: interaction.user.tag
+        },
+
+        action: action,
+
+        timestamp: new Date().toISOString()
+
+    };
+
+    // ----------------------------------------------
+    // SAVE ACTIVITY
+    // ----------------------------------------------
+
+    activities.push(activityRecord);
+
+    try {
+
+        fs.writeFileSync(
+            ACTIVITY_FILE,
+            JSON.stringify(
+                activities,
+                null,
+                2
+            )
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not save activity:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not save the faction activity.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CONFIRMATION
+    // ----------------------------------------------
+
+    const activityEmbed = {
+
+        color: 0xFF8C00,
+
+        title:
+            '🏴 FACTIONS • ACTIVITY RECORDED',
+
+        fields: [
+
+            {
+                name: '🏴 Faction',
+                value: factionData.name,
+                inline: true
+            },
+
+            {
+                name: '👤 Recorded By',
+                value: `${interaction.user}`,
+                inline: true
+            },
+
+            {
+                name: '📋 Activity',
+                value: action,
+                inline: false
+            }
+
+        ],
+
+        footer: {
+            text:
+                'Lynwood Factions • Activity System'
+        },
+
+        timestamp:
+            new Date().toISOString()
+
+    };
+
+    return interaction.reply({
+
+        embeds: [activityEmbed],
+
+        ephemeral: true
+
+    });
+
+}
+
+
 
 });
 
