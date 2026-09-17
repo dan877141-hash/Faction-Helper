@@ -652,6 +652,14 @@ function getLeaderGang(member) {
 
 }
 
+function getFactionStrikes(gangKey) {
+    if (!factionStrikes[gangKey]) {
+        factionStrikes[gangKey] = [];
+    }
+
+    return factionStrikes[gangKey];
+}
+
 
 // ======================================================
 // GANG LOGGING SYSTEM
@@ -2512,32 +2520,26 @@ if (interaction.commandName === 'strikeadd') {
 
     const [gangKey, gang] = factionEntry;
 
-    // ----------------------------------------------
-    // CREATE STRIKES ARRAY
-    // ----------------------------------------------
 
-    if (!gang.strikes) {
-        gang.strikes = [];
-    }
 
-    // ----------------------------------------------
-    // ADD STRIKE
-    // ----------------------------------------------
+// ----------------------------------------------
+// ADD STRIKE
+// ----------------------------------------------
 
-    const strike = {
-        reason: reason,
-        addedBy: interaction.user.id,
-        addedByTag: interaction.user.tag,
-        addedAt: new Date().toISOString()
-    };
+const strike = {
+    reason: reason,
+    addedBy: interaction.user.id,
+    addedByTag: interaction.user.tag,
+    addedAt: new Date().toISOString()
+};
 
-    gang.strikes.push(strike);
+const strikes = getFactionStrikes(gangKey);
 
-    const strikeNumber = gang.strikes.length;
+strikes.push(strike);
 
-    // ----------------------------------------------
-    // CONFIRM
-    // ----------------------------------------------
+saveFactionStrikes(factionStrikes);
+
+const strikeNumber = strikes.length;
 
     return interaction.reply({
         content:
@@ -2578,17 +2580,17 @@ if (interaction.commandName === 'strikeinfo') {
 
     const [gangKey, gang] = factionEntry;
 
-    const strikes = gang.strikes || [];
+    const strikes = getFactionStrikes(gangKey);
 
-    if (strikes.length === 0) {
+       if (strikes.length === 0) {
 
-        return interaction.reply({
-            content:
-                `🚫 **${gang.name}** currently has no active strikes.`,
-            ephemeral: true
-        });
+    return interaction.reply({
+        content:
+            `🚫 **${gang.name}** currently has no active strikes.`,
+        ephemeral: true
+    });
 
-    }
+}
 
     let strikeList = '';
 
@@ -2641,12 +2643,12 @@ if (interaction.commandName === 'strikeinfo') {
 
 if (interaction.commandName === 'strikelist') {
 
-    const factionsWithStrikes =
-        Object.values(GANGS).filter(
-            gang =>
-                gang.strikes &&
-                gang.strikes.length > 0
-        );
+  const factionsWithStrikes = Object.entries(GANGS).filter(
+    ([gangKey, gang]) => {
+        const strikes = getFactionStrikes(gangKey);
+        return strikes.length > 0;
+   }
+);
 
     if (factionsWithStrikes.length === 0) {
 
@@ -2660,14 +2662,16 @@ if (interaction.commandName === 'strikelist') {
 
     let strikeList = '';
 
-    factionsWithStrikes.forEach((gang, index) => {
+    factionsWithStrikes.forEach(([gangKey, gang], index) => {
 
-        strikeList +=
-            `**${index + 1}. ${gang.name}**\n` +
-            `❌ Active Strikes: **${gang.strikes.length}**\n` +
-            `📍 Block: ${gang.block || 'Not Assigned'}\n\n`;
+    const strikes = getFactionStrikes(gangKey);
 
-    });
+    strikeList +=
+        `**${index + 1}. ${gang.name}**\n` +
+        `❌ Active Strikes: **${strikes.length}**\n` +
+        `📍 Block: ${gang.block || 'Not Assigned'}\n\n`;
+
+});
 
     const embed = {
 
@@ -2723,17 +2727,17 @@ if (interaction.commandName === 'strikehistory') {
 
     const [gangKey, gang] = factionEntry;
 
-    const strikes = gang.strikes || [];
+    const strikes = getFactionStrikes(gangKey);
 
-    if (strikes.length === 0) {
+     if (strikes.length === 0) {
 
-        return interaction.reply({
-            content:
-                `📋 **${gang.name}** has no recorded strike history.`,
-            ephemeral: true
-        });
+    return interaction.reply({
+        content:
+            `📋 **${gang.name}** has no recorded strike history.`,
+        ephemeral: true
+    });
 
-    }
+}
 
     let history = '';
 
@@ -2825,21 +2829,24 @@ if (interaction.commandName === 'strikeremove') {
     // FIND FACTION
     // ----------------------------------------------
 
-    const faction = Object.values(GANGS).find(
-        gang =>
-            gang.name.toLowerCase() ===
-            factionName.toLowerCase()
-    );
+    const factionEntry = Object.entries(GANGS).find(
+    ([key, gang]) =>
+        gang.name.toLowerCase() === factionName.toLowerCase()
+);
 
-    if (!faction) {
+if (!factionEntry) {
 
-        return interaction.reply({
-            content:
-                `❌ I could not find a registered faction named **${factionName}**.`,
-            ephemeral: true
-        });
+    return interaction.reply({
+        content:
+            `❌ I could not find a registered faction named **${factionName}**.`,
+        ephemeral: true
+    });
 
-    }
+}
+
+const [gangKey, faction] = factionEntry;
+
+const strikes = getFactionStrikes(gangKey);
 
     // ----------------------------------------------
     // STRIKE DATA
@@ -2848,18 +2855,15 @@ if (interaction.commandName === 'strikeremove') {
     // in a factionStrikes object.
     // ----------------------------------------------
 
-    if (!factionStrikes[faction.name]) {
+   if (strikes.length === 0) {
 
-        return interaction.reply({
-            content:
-                `⚠️ **${faction.name}** currently has no strikes.`,
-            ephemeral: true
-        });
+    return interaction.reply({
+        content:
+            `⚠️ **${faction.name}** currently has no strikes.`,
+        ephemeral: true
+    });
 
-    }
-
-    const strikes =
-        factionStrikes[faction.name];
+}
 
     // ----------------------------------------------
     // CHECK STRIKE EXISTS
@@ -2940,21 +2944,34 @@ if (interaction.commandName === 'strikeclear') {
     const factionName =
         interaction.options.getString('faction');
 
-    const faction = Object.values(GANGS).find(
-        gang =>
-            gang.name.toLowerCase() ===
-            factionName.toLowerCase()
-    );
+   const factionEntry = Object.entries(GANGS).find(
+    ([key, gang]) =>
+        gang.name.toLowerCase() === factionName.toLowerCase()
+);
 
-    if (!faction) {
+if (!factionEntry) {
 
-        return interaction.reply({
-            content:
-                `❌ I could not find a registered faction named **${factionName}**.`,
-            ephemeral: true
-        });
+    return interaction.reply({
+        content:
+            `❌ I could not find a registered faction named **${factionName}**.`,
+        ephemeral: true
+    });
 
-    }
+}
+
+const [gangKey, faction] = factionEntry;
+
+const strikes = getFactionStrikes(gangKey);
+
+    if (strikes.length === 0) {
+
+    return interaction.reply({
+        content:
+            `⚠️ **${faction.name}** currently has no active strikes.`,
+        ephemeral: true
+    });
+
+}
 
     // ----------------------------------------------
     // CHECK STRIKES
@@ -2977,16 +2994,11 @@ if (interaction.commandName === 'strikeclear') {
     // COUNT STRIKES
     // ----------------------------------------------
 
-    const removedCount =
-        factionStrikes[faction.name].length;
+    const removedCount = strikes.length;
 
-    // ----------------------------------------------
-    // CLEAR STRIKES
-    // ----------------------------------------------
+strikes.length = 0;
 
-    factionStrikes[faction.name] = [];
-
-    saveFactionStrikes(factionStrikes);
+saveFactionStrikes(factionStrikes);
 
     // ----------------------------------------------
     // SUCCESS
@@ -4074,73 +4086,6 @@ if (interaction.commandName === 'factionstats') {
         );
 
     // ----------------------------------------------
-    // STRIKES
-    // ----------------------------------------------
-
-    const STRIKE_FILE =
-        path.join(__dirname, 'strikes.json');
-
-    let strikes = [];
-
-    if (fs.existsSync(STRIKE_FILE)) {
-
-        try {
-
-            strikes = JSON.parse(
-                fs.readFileSync(
-                    STRIKE_FILE,
-                    'utf8'
-                )
-            );
-
-        } catch (error) {
-
-            strikes = [];
-
-        }
-
-    }
-
-    const factionStrikes =
-        strikes.filter(
-            strike =>
-                strike.faction &&
-                strike.faction.toLowerCase() ===
-                faction.name.toLowerCase()
-        );
-
-    // ----------------------------------------------
-    // MONEY
-    // ----------------------------------------------
-
-    const MONEY_FILE =
-        path.join(__dirname, 'gangmoney.json');
-
-    let moneyData = {};
-
-    if (fs.existsSync(MONEY_FILE)) {
-
-        try {
-
-            moneyData = JSON.parse(
-                fs.readFileSync(
-                    MONEY_FILE,
-                    'utf8'
-                )
-            );
-
-        } catch (error) {
-
-            moneyData = {};
-
-        }
-
-    }
-
-    const balance =
-        moneyData[faction.name]?.balance || 0;
-
-    // ----------------------------------------------
     // DISPLAY
     // ----------------------------------------------
 
@@ -4211,61 +4156,7 @@ if (interaction.commandName === 'factionstats') {
 
 }
 
-// ======================================================
-// !gangrules
-// ======================================================
 
-if (message.content === '!gangrules') {
-
-    const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
-
-    if (!message.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
-
-        const deniedMessage =
-            await message.reply({
-                content:
-                    '❌ You do not have permission to use `!gangrules`.\n\n' +
-                    'Only **Faction Staff** can use this command.'
-            });
-
-        setTimeout(() => {
-            deniedMessage.delete().catch(() => {});
-        }, 5000);
-
-        return;
-    }
-
-    await message.delete().catch(() => {});
-
-    const gangRulesEmbed = {
-
-        color: 0xFF8C00,
-
-        title:
-            '🏴 LYNWOOD FACTIONS • GANG RULES',
-
-        description:
-            'Looking for the current **Factions Rules**?\n\n' +
-            '📖 **[Click Here to View the Faction Rules](https://docs.google.com/document/d/1wLqhj4ovee_VM6srkhVrAbT-J2M_8O89JqLlJ33S4Y0/edit?usp=sharing)**\n\n' +
-            'Please make sure you read and understand all faction rules before participating in faction activities.',
-
-        footer: {
-            text:
-                'Lynwood Factions • Faction Rules'
-        },
-
-        timestamp:
-            new Date().toISOString()
-
-    };
-
-    await message.channel.send({
-        embeds: [gangRulesEmbed]
-    });
-
-    return;
-}
 
 });
 
@@ -4280,6 +4171,58 @@ client.on('messageCreate', async message => {
 
     // Only work inside servers
     if (!message.guild) return;
+
+    // !gangrules
+    if (message.content.trim().toLowerCase() === '!gangrules') {
+
+         const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+
+    // Faction Staff only
+    if (!message.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+
+        const deniedMessage = await message.reply({
+            content:
+                '❌ You do not have permission to use `!gangrules`.\n\n' +
+                'Only **Faction Staff** can use this command.'
+        });
+
+        setTimeout(() => {
+            deniedMessage.delete().catch(() => {});
+        }, 5000);
+
+        return;
+    }
+
+    // Delete the command message
+    await message.delete().catch(() => {});
+
+    const gangRulesEmbed = {
+
+        color: 0xFF8C00,
+
+        title:
+            '🏴 LYNWOOD FACTIONS • GANG RULES',
+
+        description:
+            'Looking for the current **Faction Rules**?\n\n' +
+            '📖 **[Click Here to View the Faction Rules](https://docs.google.com/document/d/1wLqhj4ovee_VM6srkhVrAbT-J2M_8O89JqLlJ33S4Y0/edit?usp=sharing)**\n\n' +
+            'Please make sure you read and understand all faction rules before participating in faction activities.',
+
+        footer: {
+            text:
+                'Lynwood Factions • Faction Rules'
+        },
+
+        timestamp:
+            new Date().toISOString()
+    };
+
+    await message.channel.send({
+        embeds: [gangRulesEmbed]
+    });
+
+    return;
+}
 
     // !newgangs — Faction Staff Only
     if (message.content === '!newgangs') {
