@@ -1241,8 +1241,6 @@ client.on('interactionCreate', async interaction => {
 
     }
 
-});
-
     // ==================================================
     // /ganglist
     // ==================================================
@@ -1327,6 +1325,8 @@ client.on('interactionCreate', async interaction => {
         });
 
     }
+
+});
 
 // ======================================================
 // AUTO-STICKY MESSAGE SYSTEM
