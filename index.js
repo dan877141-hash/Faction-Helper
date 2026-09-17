@@ -11,7 +11,16 @@ const {
 const fs = require('fs');
 const path = require('path');
 
-const STICKY_FILE = path.join(__dirname, 'sticky.json');
+const DATA_DIR = path.join(__dirname, 'data');
+
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, {
+        recursive: true
+    });
+}
+
+const STICKY_FILE =
+    path.join(DATA_DIR, 'sticky.json');
 
 function loadSticky() {
     if (!fs.existsSync(STICKY_FILE)) {
@@ -41,7 +50,8 @@ const stickyMessages = loadSticky();
 // FACTION STRIKE SYSTEM
 // ======================================================
 
-const STRIKE_FILE = path.join(__dirname, 'factionStrikes.json');
+const STRIKE_FILE =
+    path.join(DATA_DIR, 'factionStrikes.json');
 
 function loadFactionStrikes() {
 
@@ -83,7 +93,8 @@ const factionStrikes = loadFactionStrikes();
 // FACTION MONEY SYSTEM
 // ======================================================
 
-const MONEY_FILE = path.join(__dirname, 'factionMoney.json');
+const MONEY_FILE =
+    path.join(DATA_DIR, 'factionMoney.json');
 
 function loadFactionMoney() {
 
@@ -125,7 +136,8 @@ const factionMoney = loadFactionMoney();
 // FACTION TRANSACTION SYSTEM
 // ======================================================
 
-const TRANSACTION_FILE = path.join(__dirname, 'factionTransactions.json');
+const TRANSACTION_FILE =
+    path.join(DATA_DIR, 'factionTransactions.json');
 
 function loadFactionTransactions() {
 
@@ -206,7 +218,8 @@ const GANG_LOG_CHANNEL_ID = process.env.GANG_LOG_CHANNEL_ID;
 // FACTION CONFIGURATION
 // ======================================================
 
-const FACTIONS_FILE = path.join(__dirname, 'factions.json');
+const FACTIONS_FILE =
+    path.join(DATA_DIR, 'factions.json');
 
 function loadFactions() {
 
@@ -3818,7 +3831,7 @@ if (interaction.commandName === 'activity') {
     // ----------------------------------------------
 
     const ACTIVITY_FILE =
-        path.join(__dirname, 'activity.json');
+    path.join(DATA_DIR, 'activity.json');
 
     let activities = [];
 
@@ -3976,7 +3989,7 @@ if (interaction.commandName === 'inactive') {
     }
 
     const ACTIVITY_FILE =
-        path.join(__dirname, 'activity.json');
+        path.join(DATA_DIR, 'activity.json')
 
     let activities = [];
 
@@ -4144,7 +4157,7 @@ if (interaction.commandName === 'activitylog') {
         interaction.options.getString('faction');
 
     const ACTIVITY_FILE =
-        path.join(__dirname, 'activity.json');
+    path.join(DATA_DIR, 'activity.json');
 
     let activities = [];
 
@@ -4333,7 +4346,7 @@ if (interaction.commandName === 'factionstats') {
     // ----------------------------------------------
 
     const ACTIVITY_FILE =
-        path.join(__dirname, 'activity.json');
+        path.join(DATA_DIR, 'activity.json');
 
     let activities = [];
 
