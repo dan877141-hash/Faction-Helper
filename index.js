@@ -2562,7 +2562,7 @@ if (interaction.commandName === 'strikeinfo') {
 
         return interaction.reply({
             content:
-                `✅ **${gang.name}** currently has no active strikes.`,
+                `🚫 **${gang.name}** currently has no active strikes.`,
             ephemeral: true
         });
 
