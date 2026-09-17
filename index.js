@@ -11,6 +11,10 @@ const {
 const fs = require('fs');
 const path = require('path');
 
+// ======================================================
+// DATA DIRECTORY
+// ======================================================
+
 const DATA_DIR = path.join(__dirname, 'data');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -19,8 +23,70 @@ if (!fs.existsSync(DATA_DIR)) {
     });
 }
 
+// ======================================================
+// DATA FILES
+// ======================================================
+
 const STICKY_FILE =
     path.join(DATA_DIR, 'sticky.json');
+
+const STRIKE_FILE =
+    path.join(DATA_DIR, 'factionStrikes.json');
+
+const MONEY_FILE =
+    path.join(DATA_DIR, 'factionMoney.json');
+
+const TRANSACTION_FILE =
+    path.join(DATA_DIR, 'factionTransactions.json');
+
+const FACTIONS_FILE =
+    path.join(DATA_DIR, 'factions.json');
+
+const ACTIVITY_FILE =
+    path.join(DATA_DIR, 'activity.json');
+
+// ======================================================
+// INITIALIZE PERSISTENT DATA
+// ======================================================
+
+const SEED_DIR = path.join(__dirname, 'seed-data');
+
+const DATA_FILES = [
+    'factions.json',
+    'factionMoney.json',
+    'factionStrikes.json',
+    'factionTransactions.json',
+    'activity.json',
+    'sticky.json'
+];
+
+for (const file of DATA_FILES) {
+
+    const persistentFile =
+        path.join(DATA_DIR, file);
+
+    const seedFile =
+        path.join(SEED_DIR, file);
+
+    if (
+        !fs.existsSync(persistentFile) &&
+        fs.existsSync(seedFile)
+    ) {
+
+        fs.copyFileSync(
+            seedFile,
+            persistentFile
+        );
+
+        console.log(
+            `✅ Initialized persistent file: ${file}`
+        );
+    }
+}
+
+// ======================================================
+// STICKY SYSTEM
+// ======================================================
 
 function loadSticky() {
     if (!fs.existsSync(STICKY_FILE)) {
@@ -49,9 +115,6 @@ const stickyMessages = loadSticky();
 // ======================================================
 // FACTION STRIKE SYSTEM
 // ======================================================
-
-const STRIKE_FILE =
-    path.join(DATA_DIR, 'factionStrikes.json');
 
 function loadFactionStrikes() {
 
@@ -93,9 +156,6 @@ const factionStrikes = loadFactionStrikes();
 // FACTION MONEY SYSTEM
 // ======================================================
 
-const MONEY_FILE =
-    path.join(DATA_DIR, 'factionMoney.json');
-
 function loadFactionMoney() {
 
     if (!fs.existsSync(MONEY_FILE)) {
@@ -135,9 +195,6 @@ const factionMoney = loadFactionMoney();
 // ======================================================
 // FACTION TRANSACTION SYSTEM
 // ======================================================
-
-const TRANSACTION_FILE =
-    path.join(DATA_DIR, 'factionTransactions.json');
 
 function loadFactionTransactions() {
 
@@ -217,9 +274,6 @@ const GANG_LOG_CHANNEL_ID = process.env.GANG_LOG_CHANNEL_ID;
 // ======================================================
 // FACTION CONFIGURATION
 // ======================================================
-
-const FACTIONS_FILE =
-    path.join(DATA_DIR, 'factions.json');
 
 function loadFactions() {
 
@@ -3830,9 +3884,6 @@ if (interaction.commandName === 'activity') {
     // ACTIVITY FILE
     // ----------------------------------------------
 
-    const ACTIVITY_FILE =
-    path.join(DATA_DIR, 'activity.json');
-
     let activities = [];
 
     if (fs.existsSync(ACTIVITY_FILE)) {
@@ -3987,9 +4038,6 @@ if (interaction.commandName === 'inactive') {
         });
 
     }
-
-    const ACTIVITY_FILE =
-        path.join(DATA_DIR, 'activity.json')
 
     let activities = [];
 
@@ -4155,9 +4203,6 @@ if (interaction.commandName === 'activitylog') {
 
     const faction =
         interaction.options.getString('faction');
-
-    const ACTIVITY_FILE =
-    path.join(DATA_DIR, 'activity.json');
 
     let activities = [];
 
@@ -4344,9 +4389,6 @@ if (interaction.commandName === 'factionstats') {
     // ----------------------------------------------
     // ACTIVITY
     // ----------------------------------------------
-
-    const ACTIVITY_FILE =
-        path.join(DATA_DIR, 'activity.json');
 
     let activities = [];
 
