@@ -648,7 +648,23 @@ new SlashCommandBuilder()
                 .setName('faction')
                 .setDescription('Faction to view.')
                 .setRequired(true)
-        )
+        ),
+
+new SlashCommandBuilder()
+    .setName('giveleaderrole')
+    .setDescription('Give a faction leader role to a member.')
+    .addUserOption(option =>
+        option
+            .setName('user')
+            .setDescription('The member who will receive the leader role.')
+            .setRequired(true)
+    )
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction whose leader role will be given.')
+            .setRequired(true)
+    )
 
 ].map(command => command.toJSON());
 
@@ -941,6 +957,130 @@ client.once('ready', () => {
 
 });
 
+// ======================================================
+// SELECTIVE COMMAND LOGGER
+// ======================================================
+
+const LOGGED_COMMANDS = new Set([
+    'creategang',
+    'gangleader',
+    'gangtransfer',
+    'giveleaderrole',
+    'activitylog',
+    'strikeadd',
+    'strikeinfo',
+    'strikelist',
+    'strikehistory',
+    'strikeremove',
+    'strikeclear',
+    'gangblock',
+    'gangtier',
+    'gangrename'
+]);
+
+async function logSelectedCommand(interaction) {
+
+    if (!LOGGED_COMMANDS.has(interaction.commandName)) {
+        return;
+    }
+
+    try {
+
+        if (!GANG_LOG_CHANNEL_ID) {
+            console.error(
+                '❌ GANG_LOG_CHANNEL_ID is not configured.'
+            );
+            return;
+        }
+
+        const logChannel =
+            interaction.guild.channels.cache.get(
+                GANG_LOG_CHANNEL_ID
+            );
+
+        if (!logChannel) {
+            console.error(
+                '❌ Command log channel could not be found.'
+            );
+            return;
+        }
+
+        const options = interaction.options.data
+            .map(option => {
+
+                let value = option.value;
+
+                if (option.user) {
+                    value =
+                        `${option.user.tag} (${option.user.id})`;
+                }
+
+                if (option.member) {
+                    value =
+                        `${option.member.user.tag} (${option.member.user.id})`;
+                }
+
+                return `**${option.name}:** \`${value}\``;
+
+            })
+            .join('\n');
+
+        await logChannel.send({
+
+            embeds: [
+                {
+                    title: '📋 Faction Command Log',
+
+                    color: 0x5865F2,
+
+                    fields: [
+                        {
+                            name: 'Command',
+                            value:
+                                `\`/${interaction.commandName}\``,
+                            inline: true
+                        },
+                        {
+                            name: 'User',
+                            value:
+                                `${interaction.user} (\`${interaction.user.id}\`)`,
+                            inline: true
+                        },
+                        {
+                            name: 'Channel',
+                            value:
+                                `${interaction.channel}`,
+                            inline: true
+                        },
+                        {
+                            name: 'Options',
+                            value:
+                                options || 'None'
+                        }
+                    ],
+
+                    footer: {
+                        text:
+                            'Lynwood Factions • Faction Logs'
+                    },
+
+                    timestamp:
+                        new Date().toISOString()
+                }
+            ]
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            '❌ Failed to send faction command log:',
+            error
+        );
+
+    }
+
+}
 
 // ======================================================
 // SLASH COMMAND HANDLER
@@ -954,6 +1094,11 @@ client.on('interactionCreate', async interaction => {
     // Make sure command is being used inside a server
     if (!interaction.guild) return;
 
+    // ==================================================
+    // LOG SELECTED FACTION COMMANDS
+    // ==================================================
+
+    await logSelectedCommand(interaction);
 
     // ==================================================
     // /sticky
@@ -4518,6 +4663,176 @@ if (interaction.commandName === 'factionstats') {
 
     });
 
+}
+
+// ======================================================
+// /GIVELEADERROLE
+// STAFF ONLY
+// ======================================================
+
+if (interaction.commandName === 'giveleaderrole') {
+
+    // ----------------------------------------------
+    // STAFF CHECK
+    // ----------------------------------------------
+
+    if (!STAFF_ROLE_ID) {
+        console.error(
+            '❌ STAFF_ROLE_ID is not configured in .env'
+        );
+
+        return interaction.reply({
+            content:
+                '❌ The staff role is not configured. Please contact an administrator.',
+            ephemeral: true
+        });
+    }
+
+    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use this command.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const targetUser =
+        interaction.options.getUser('user');
+
+    const factionName =
+        interaction.options.getString('faction');
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factionEntry = Object.entries(GANGS).find(
+        ([, faction]) =>
+            faction.name &&
+            faction.name.toLowerCase() ===
+            factionName.toLowerCase()
+    );
+
+    if (!factionEntry) {
+        return interaction.reply({
+            content:
+                `❌ I couldn't find a faction named **${factionName}**.`,
+            ephemeral: true
+        });
+    }
+
+    const [factionKey, faction] = factionEntry;
+
+    // ----------------------------------------------
+    // CHECK LEADER ROLE
+    // ----------------------------------------------
+
+    if (!faction.leaderRole) {
+        return interaction.reply({
+            content:
+                `❌ **${faction.name}** does not have a leader role assigned.`,
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // FIND DISCORD MEMBER
+    // ----------------------------------------------
+
+    let member;
+
+    try {
+
+        member =
+            await interaction.guild.members.fetch(
+                targetUser.id
+            );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not fetch target member:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not find that member in the server.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // FIND LEADER ROLE
+    // ----------------------------------------------
+
+    const leaderRole =
+        interaction.guild.roles.cache.get(
+            faction.leaderRole
+        );
+
+    if (!leaderRole) {
+        return interaction.reply({
+            content:
+                `❌ The leader role for **${faction.name}** could not be found.`,
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // BOT ROLE HIERARCHY CHECK
+    // ----------------------------------------------
+
+    if (
+        leaderRole.position >=
+        interaction.guild.members.me.roles.highest.position
+    ) {
+
+        return interaction.reply({
+            content:
+                `❌ I cannot give **${leaderRole.name}** because that role is higher than or equal to my highest role.`,
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // GIVE ROLE
+    // ----------------------------------------------
+
+    try {
+
+        await member.roles.add(
+            leaderRole,
+            `Faction leader role assigned by ${interaction.user.tag}`
+        );
+
+        await interaction.reply({
+            content:
+                `🔓 ${targetUser} has been given the **${leaderRole.name}** role for **${faction.name}**.`,
+            ephemeral: false
+        });
+
+        console.log(
+            `✔️ ${interaction.user.tag} gave ${leaderRole.name} to ${targetUser.tag} for ${faction.name}.`
+        );
+
+    } catch (error) {
+
+        console.error(
+            `❌ Failed to give leader role for ${factionKey}:`,
+            error
+        );
+
+        return interaction.reply({
+            content:
+                `🚫 I couldn't give the **${leaderRole.name}** role. Check my Discord role hierarchy and permissions.`,
+            ephemeral: true
+        });
+    }
 }
 
 });
