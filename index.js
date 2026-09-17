@@ -4043,15 +4043,15 @@ if (interaction.commandName === 'factionstats') {
     // FIND FACTION
     // ----------------------------------------------
 
-    const faction =
-        Object.values(GANGS).find(
-            gang =>
+    const factionEntry =
+        Object.entries(GANGS).find(
+            ([key, gang]) =>
                 gang.name &&
                 gang.name.toLowerCase() ===
                 factionName.toLowerCase()
         );
 
-    if (!faction) {
+    if (!factionEntry) {
 
         return interaction.reply({
             content:
@@ -4060,6 +4060,8 @@ if (interaction.commandName === 'factionstats') {
         });
 
     }
+
+    const [gangKey, faction] = factionEntry;
 
     // ----------------------------------------------
     // FIND FACTION ROLE
@@ -4125,18 +4127,24 @@ if (interaction.commandName === 'factionstats') {
     // ----------------------------------------------
 
     const strikes =
-        getFactionStrikes(
-            Object.entries(GANGS).find(
-                ([key, gang]) => gang === faction
-            )?.[0]
-        );
+        getFactionStrikes(gangKey);
 
     // ----------------------------------------------
     // MONEY
     // ----------------------------------------------
 
-    const balance =
-        moneyData[faction.name]?.balance || 0;
+    let balance = 0;
+
+    if (
+        typeof moneyData !== 'undefined' &&
+        moneyData &&
+        moneyData[faction.name]
+    ) {
+
+        balance =
+            moneyData[faction.name].balance || 0;
+
+    }
 
     // ----------------------------------------------
     // DISPLAY
