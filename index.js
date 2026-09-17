@@ -4008,6 +4008,10 @@ if (interaction.commandName === 'factionstats') {
 
     const FACTION_STAFF_ROLE_ID = '1545272829891837973';
 
+    // ----------------------------------------------
+    // CHECK FACTION STAFF
+    // ----------------------------------------------
+
     if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
 
         return interaction.reply({
@@ -4018,8 +4022,26 @@ if (interaction.commandName === 'factionstats') {
 
     }
 
+    // ----------------------------------------------
+    // GET FACTION
+    // ----------------------------------------------
+
     const factionName =
         interaction.options.getString('faction');
+
+    if (!factionName) {
+
+        return interaction.reply({
+            content:
+                '❌ You must provide a faction name.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
 
     const faction =
         Object.values(GANGS).find(
@@ -4038,6 +4060,10 @@ if (interaction.commandName === 'factionstats') {
         });
 
     }
+
+    // ----------------------------------------------
+    // FIND FACTION ROLE
+    // ----------------------------------------------
 
     const gangRole =
         interaction.guild.roles.cache.get(
@@ -4069,7 +4095,16 @@ if (interaction.commandName === 'factionstats') {
                 )
             );
 
+            if (!Array.isArray(activities)) {
+                activities = [];
+            }
+
         } catch (error) {
+
+            console.error(
+                '❌ Could not read activity.json:',
+                error
+            );
 
             activities = [];
 
@@ -4084,6 +4119,24 @@ if (interaction.commandName === 'factionstats') {
                 activity.faction.toLowerCase() ===
                 faction.name.toLowerCase()
         );
+
+    // ----------------------------------------------
+    // STRIKES
+    // ----------------------------------------------
+
+    const strikes =
+        getFactionStrikes(
+            Object.entries(GANGS).find(
+                ([key, gang]) => gang === faction
+            )?.[0]
+        );
+
+    // ----------------------------------------------
+    // MONEY
+    // ----------------------------------------------
+
+    const balance =
+        moneyData[faction.name]?.balance || 0;
 
     // ----------------------------------------------
     // DISPLAY
@@ -4112,25 +4165,30 @@ if (interaction.commandName === 'factionstats') {
 
             {
                 name: '❌ Active Strikes',
-                value: `${factionStrikes.length}`,
+                value: `${strikes.length}`,
                 inline: true
             },
 
             {
                 name: '💰 Faction Balance',
-                value: `$${balance.toLocaleString()}`,
+                value:
+                    `$${balance.toLocaleString()}`,
                 inline: true
             },
 
             {
                 name: '📍 Block',
-                value: faction.block || 'Not Assigned',
+                value:
+                    faction.block ||
+                    'Not Assigned',
                 inline: true
             },
 
             {
                 name: '🏆 Tier',
-                value: faction.tier || 'Not Assigned',
+                value:
+                    faction.tier ||
+                    'Not Assigned',
                 inline: true
             }
 
@@ -4138,7 +4196,7 @@ if (interaction.commandName === 'factionstats') {
 
         footer: {
             text:
-                'Lynwood Factions • Faction Statistics'
+                'Lynwood • Faction Statistics'
         },
 
         timestamp:
@@ -4155,8 +4213,6 @@ if (interaction.commandName === 'factionstats') {
     });
 
 }
-
-
 
 });
 
