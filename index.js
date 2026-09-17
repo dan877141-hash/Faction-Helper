@@ -2630,7 +2630,7 @@ if (interaction.commandName === 'strikelist') {
 
         return interaction.reply({
             content:
-                '✅ There are currently no factions with active strikes.',
+                '🚫 There are currently no factions with active strikes.',
             ephemeral: true
         });
 
