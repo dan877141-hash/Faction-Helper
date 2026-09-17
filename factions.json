@@ -1,1 +1,105 @@
-{}
+{
+  "Admin": {
+    "name": "Admin",
+    "leaderRole": "1549649301397970974",
+    "gangRole": "1549649573604233246",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction1": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction2": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction3": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction4": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction5": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction6": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction7": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction8": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction9": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction10": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction11": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  },
+
+  "Faction12": {
+    "name": "Name",
+    "leaderRole": "",
+    "gangRole": "",
+    "block": "Not Assigned",
+    "tier": "Not Assigned"
+  }
+}

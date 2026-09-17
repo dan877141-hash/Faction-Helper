@@ -202,112 +202,91 @@ const GANG_LOG_CHANNEL_ID = process.env.GANG_LOG_CHANNEL_ID;
 //
 // ======================================================
 
-const GANGS = {
+// ======================================================
+// FACTION CONFIGURATION
+// ======================================================
 
-    Admin: {
-        name: 'Admin',
-        leaderRole: '1549649301397970974',
-        gangRole: '1549649573604233246',
-         block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
+const FACTIONS_FILE = path.join(__dirname, 'factions.json');
 
-    FactionNAme: {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
+function loadFactions() {
 
-    FactionNAme: {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
+    if (!fs.existsSync(FACTIONS_FILE)) {
 
-    'FactionNAme': {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
+        console.error(
+            '❌ factions.json was not found.'
+        );
 
-    FactionNAme: {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
+        return {};
 
-    FactionNAme: {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
-    
-    FactionNAme: {
-        name: 'NAme',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
-    
-    FactionNAme: {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
-
-    FactionNAme: {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
-
-    'FactionNAme': {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
-
-    FactionNAme: {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
-
-    FactionNAme: {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
-    },
-
-    FactionNAme: {
-        name: 'Name',
-        leaderRole: '',
-        gangRole: '',
-        block: 'Not Assigned',
-        tier: 'Not Assigned'
     }
-};
+
+    try {
+
+        const data = JSON.parse(
+            fs.readFileSync(
+                FACTIONS_FILE,
+                'utf8'
+            )
+        );
+
+        if (
+            !data ||
+            typeof data !== 'object' ||
+            Array.isArray(data)
+        ) {
+
+            console.error(
+                '❌ factions.json must contain a JSON object.'
+            );
+
+            return {};
+
+        }
+
+        return data;
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not read factions.json:',
+            error
+        );
+
+        return {};
+
+    }
+
+}
+
+function saveFactions(data) {
+
+    try {
+
+        fs.writeFileSync(
+            FACTIONS_FILE,
+            JSON.stringify(
+                data,
+                null,
+                2
+            )
+        );
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not save factions.json:',
+            error
+        );
+
+        return false;
+
+    }
+
+}
+
+const GANGS = loadFactions();
 
 
 // ======================================================
@@ -2079,11 +2058,25 @@ if (interaction.commandName === 'gangblock') {
     const oldBlock =
         gang.block || 'Not Assigned';
 
-    // ----------------------------------------------
-    // UPDATE BLOCK
-    // ----------------------------------------------
+   // ----------------------------------------------
+// UPDATE BLOCK
+// ----------------------------------------------
 
-    gang.block = newBlock;
+gang.block = newBlock;
+
+// ----------------------------------------------
+// SAVE FACTION DATA
+// ----------------------------------------------
+
+if (!saveFactions(GANGS)) {
+
+    return interaction.reply({
+        content:
+            '❌ The block was changed, but I could not save the faction data.',
+        ephemeral: true
+    });
+
+}
 
     // ----------------------------------------------
     // CONFIRM
@@ -2163,10 +2156,24 @@ if (interaction.commandName === 'gangtier') {
         gang.tier || 'Not Assigned';
 
     // ----------------------------------------------
-    // UPDATE TIER
-    // ----------------------------------------------
+// UPDATE TIER
+// ----------------------------------------------
 
-    gang.tier = newTier;
+gang.tier = newTier;
+
+// ----------------------------------------------
+// SAVE FACTION DATA
+// ----------------------------------------------
+
+if (!saveFactions(GANGS)) {
+
+    return interaction.reply({
+        content:
+            '❌ The tier was changed, but I could not save the faction data.',
+        ephemeral: true
+    });
+
+}
 
     // ----------------------------------------------
     // CONFIRM
@@ -2444,11 +2451,24 @@ if (interaction.commandName === 'gangrename') {
     const oldName = gang.name;
 
     // ----------------------------------------------
-    // RENAME FACTION
-    // ----------------------------------------------
+// RENAME FACTION
+// ----------------------------------------------
 
-    gang.name = newName;
+gang.name = newName;
 
+// ----------------------------------------------
+// SAVE FACTION DATA
+// ----------------------------------------------
+
+if (!saveFactions(GANGS)) {
+
+    return interaction.reply({
+        content:
+            '❌ The faction name was changed, but I could not save the faction data.',
+        ephemeral: true
+    });
+
+}
     // ----------------------------------------------
     // CONFIRM
     // ----------------------------------------------
