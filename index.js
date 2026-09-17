@@ -4665,174 +4665,246 @@ if (interaction.commandName === 'factionstats') {
 
 }
 
-// ======================================================
-// /GIVELEADERROLE
+// ==================================================
+// /giveleaderrole
 // STAFF ONLY
-// ======================================================
+// ==================================================
 
 if (interaction.commandName === 'giveleaderrole') {
 
-    // ----------------------------------------------
-    // STAFF CHECK
-    // ----------------------------------------------
-
-    if (!STAFF_ROLE_ID) {
-        console.error(
-            '❌ STAFF_ROLE_ID is not configured in .env'
-        );
-
-        return interaction.reply({
-            content:
-                '❌ The staff role is not configured. Please contact an administrator.',
-            ephemeral: true
-        });
-    }
-
-    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
-        return interaction.reply({
-            content:
-                '❌ You do not have permission to use this command.',
-            ephemeral: true
-        });
-    }
-
-    // ----------------------------------------------
-    // GET OPTIONS
-    // ----------------------------------------------
-
-    const targetUser =
-        interaction.options.getUser('user');
-
-    const factionName =
-        interaction.options.getString('faction');
-
-    // ----------------------------------------------
-    // FIND FACTION
-    // ----------------------------------------------
-
-    const factionEntry = Object.entries(GANGS).find(
-        ([, faction]) =>
-            faction.name &&
-            faction.name.toLowerCase() ===
-            factionName.toLowerCase()
-    );
-
-    if (!factionEntry) {
-        return interaction.reply({
-            content:
-                `❌ I couldn't find a faction named **${factionName}**.`,
-            ephemeral: true
-        });
-    }
-
-    const [factionKey, faction] = factionEntry;
-
-    // ----------------------------------------------
-    // CHECK LEADER ROLE
-    // ----------------------------------------------
-
-    if (!faction.leaderRole) {
-        return interaction.reply({
-            content:
-                `❌ **${faction.name}** does not have a leader role assigned.`,
-            ephemeral: true
-        });
-    }
-
-    // ----------------------------------------------
-    // FIND DISCORD MEMBER
-    // ----------------------------------------------
-
-    let member;
-
     try {
 
-        member =
-            await interaction.guild.members.fetch(
-                targetUser.id
+        // ----------------------------------------------
+        // STAFF ROLE
+        // ----------------------------------------------
+
+        const STAFF_ROLE_ID =
+            process.env.STAFF_ROLE_ID;
+
+        if (!STAFF_ROLE_ID) {
+
+            console.error(
+                '❌ STAFF_ROLE_ID is missing from Railway Variables.'
             );
 
-    } catch (error) {
+            return interaction.reply({
+                content:
+                    '❌ Staff role is not configured.',
+                ephemeral: true
+            });
 
-        console.error(
-            '❌ Could not fetch target member:',
-            error
-        );
+        }
 
-        return interaction.reply({
-            content:
-                '❌ I could not find that member in the server.',
-            ephemeral: true
-        });
-    }
+        // ----------------------------------------------
+        // CHECK STAFF PERMISSION
+        // ----------------------------------------------
 
-    // ----------------------------------------------
-    // FIND LEADER ROLE
-    // ----------------------------------------------
+        if (
+            !interaction.member.roles.cache.has(
+                STAFF_ROLE_ID
+            )
+        ) {
 
-    const leaderRole =
-        interaction.guild.roles.cache.get(
-            faction.leaderRole
-        );
+            return interaction.reply({
+                content:
+                    '❌ You do not have permission to use `/giveleaderrole`.',
+                ephemeral: true
+            });
 
-    if (!leaderRole) {
-        return interaction.reply({
-            content:
-                `❌ The leader role for **${faction.name}** could not be found.`,
-            ephemeral: true
-        });
-    }
+        }
 
-    // ----------------------------------------------
-    // BOT ROLE HIERARCHY CHECK
-    // ----------------------------------------------
+        // ----------------------------------------------
+        // GET USER
+        // ----------------------------------------------
 
-    if (
-        leaderRole.position >=
-        interaction.guild.members.me.roles.highest.position
-    ) {
+        const targetUser =
+            interaction.options.getUser('user');
 
-        return interaction.reply({
-            content:
-                `❌ I cannot give **${leaderRole.name}** because that role is higher than or equal to my highest role.`,
-            ephemeral: true
-        });
-    }
+        // ----------------------------------------------
+        // GET FACTION
+        // ----------------------------------------------
 
-    // ----------------------------------------------
-    // GIVE ROLE
-    // ----------------------------------------------
+        const factionName =
+            interaction.options
+                .getString('faction')
+                ?.trim();
 
-    try {
+        if (!targetUser || !factionName) {
+
+            return interaction.reply({
+                content:
+                    '❌ You must provide both a **user** and a **faction**.',
+                ephemeral: true
+            });
+
+        }
+
+        // ----------------------------------------------
+        // FIND FACTION
+        // ----------------------------------------------
+
+        const factions =
+            loadFactions();
+
+        const factionEntry =
+            Object.entries(factions).find(
+                ([, faction]) =>
+                    faction &&
+                    faction.name &&
+                    faction.name.toLowerCase() ===
+                    factionName.toLowerCase()
+            );
+
+        if (!factionEntry) {
+
+            return interaction.reply({
+                content:
+                    `❌ I couldn't find a faction named **${factionName}**.`,
+                ephemeral: true
+            });
+
+        }
+
+        const [factionKey, faction] =
+            factionEntry;
+
+        // ----------------------------------------------
+        // CHECK LEADER ROLE
+        // ----------------------------------------------
+
+        if (!faction.leaderRole) {
+
+            return interaction.reply({
+                content:
+                    `❌ **${faction.name}** does not have a leader role assigned.`,
+                ephemeral: true
+            });
+
+        }
+
+        // ----------------------------------------------
+        // FIND MEMBER
+        // ----------------------------------------------
+
+        let member;
+
+        try {
+
+            member =
+                await interaction.guild.members.fetch(
+                    targetUser.id
+                );
+
+        } catch (error) {
+
+            console.error(
+                '❌ Could not fetch target member:',
+                error
+            );
+
+            return interaction.reply({
+                content:
+                    '❌ I could not find that member in the server.',
+                ephemeral: true
+            });
+
+        }
+
+        // ----------------------------------------------
+        // FIND LEADER ROLE
+        // ----------------------------------------------
+
+        const leaderRole =
+            interaction.guild.roles.cache.get(
+                faction.leaderRole
+            );
+
+        if (!leaderRole) {
+
+            return interaction.reply({
+                content:
+                    `❌ The Discord leader role for **${faction.name}** could not be found.`,
+                ephemeral: true
+            });
+
+        }
+
+        // ----------------------------------------------
+        // CHECK BOT ROLE HIERARCHY
+        // ----------------------------------------------
+
+        const botMember =
+            interaction.guild.members.me;
+
+        if (!botMember) {
+
+            return interaction.reply({
+                content:
+                    '❌ I could not verify my Discord permissions.',
+                ephemeral: true
+            });
+
+        }
+
+        if (
+            leaderRole.position >=
+            botMember.roles.highest.position
+        ) {
+
+            return interaction.reply({
+                content:
+                    `❌ I cannot give **${leaderRole.name}** because my highest role must be above it in the Discord role hierarchy.`,
+                ephemeral: true
+            });
+
+        }
+
+        // ----------------------------------------------
+        // GIVE LEADER ROLE
+        // ----------------------------------------------
 
         await member.roles.add(
             leaderRole,
             `Faction leader role assigned by ${interaction.user.tag}`
         );
 
+        // ----------------------------------------------
+        // SUCCESS LOG
+        // ----------------------------------------------
+
         await interaction.reply({
             content:
                 `🔓 ${targetUser} has been given the **${leaderRole.name}** role for **${faction.name}**.`,
-            ephemeral: false
+            ephemeral: true
         });
 
         console.log(
-            `✔️ ${interaction.user.tag} gave ${leaderRole.name} to ${targetUser.tag} for ${faction.name}.`
+            `✅ ${interaction.user.tag} gave ${leaderRole.name} to ${targetUser.tag} for ${factionKey}.`
         );
 
     } catch (error) {
 
         console.error(
-            `❌ Failed to give leader role for ${factionKey}:`,
+            '❌ /giveleaderrole ERROR:',
             error
         );
 
-        return interaction.reply({
-            content:
-                `🚫 I couldn't give the **${leaderRole.name}** role. Check my Discord role hierarchy and permissions.`,
-            ephemeral: true
-        });
+        // ----------------------------------------------
+        // SAFE ERROR RESPONSE
+        // ----------------------------------------------
+
+        if (!interaction.replied && !interaction.deferred) {
+
+            return interaction.reply({
+                content:
+                    '❌ Something went wrong while giving the leader role. Check the bot console for the exact error.',
+                ephemeral: true
+            });
+
+        }
+
     }
+
 }
 
 });
