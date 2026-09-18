@@ -1095,12 +1095,6 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.guild) return;
 
     // ==================================================
-    // LOG SELECTED FACTION COMMANDS
-    // ==================================================
-
-    await logSelectedCommand(interaction);
-
-    // ==================================================
     // /sticky
     // ==================================================
 
