@@ -992,7 +992,8 @@ const LOGGED_COMMANDS = new Set([
     'strikeclear',
     'gangblock',
     'gangtier',
-    'gangrename'
+    'gangrename',
+    'create-gangthread'
 ]);
 
 async function logSelectedCommand(interaction) {
@@ -1110,6 +1111,9 @@ client.on('interactionCreate', async interaction => {
 
     // Make sure command is being used inside a server
     if (!interaction.guild) return;
+
+    // Log selected faction commands
+    await logSelectedCommand(interaction);
 
     // ==================================================
     // /sticky
@@ -1322,9 +1326,6 @@ if (interaction.commandName === 'create-gangthread') {
     // ----------------------------------------------
     // CONFIGURATION
     // ----------------------------------------------
-
-    const GANG_FORUM_CATEGORY_ID =
-        'PUT_YOUR_CATEGORY_ID_HERE';
 
     const FACTION_STAFF_ROLE_ID =
         '1545272829891837973';
