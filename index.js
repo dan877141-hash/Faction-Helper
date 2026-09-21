@@ -5578,7 +5578,7 @@ client.on('messageCreate', async message => {
 
                 embeds: [
                     {
-                        title: '📌 STICKY MESSAGE',
+                        title: '',
                         description: sticky.message,
                         color: 0xFF8C00
                     }
