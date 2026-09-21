@@ -49,6 +49,9 @@ const ACTIVITY_FILE =
 const GANG_THREADS_FILE =
     path.join(DATA_DIR, 'gangThreads.json');
 
+const FLAG_THREADS_FILE =
+    path.join(DATA_DIR, 'flagThreads.json');
+
 // ======================================================
 // INITIALIZE PERSISTENT DATA
 // ======================================================
@@ -263,6 +266,9 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const GANG_LOG_CHANNEL_ID = process.env.GANG_LOG_CHANNEL_ID;
 
 const GANG_FORUM_CATEGORY_ID = process.env.GANG_FORUM_CATEGORY_ID;
+
+const FLAG_FORUM_CHANNEL_ID =
+    process.env.FLAG_FORUM_CHANNEL_ID;
 
 
 // ======================================================
@@ -681,6 +687,41 @@ new SlashCommandBuilder()
             .setDescription('The faction name.')
             .setRequired(true)
             .setMaxLength(50)
+    ),
+
+    new SlashCommandBuilder()
+    .setName('create-flagthread')
+    .setDescription('Create a faction flag identifier in the Flag Forum.')
+    .addStringOption(option =>
+        option
+            .setName('gangname')
+            .setDescription('The faction name.')
+            .setRequired(true)
+            .setMaxLength(50)
+    )
+    .addStringOption(option =>
+        option
+            .setName('color')
+            .setDescription('Faction color in HEX format. Example: #FF0000')
+            .setRequired(true)
+            .setMaxLength(7)
+    )
+    .addStringOption(option =>
+        option
+            .setName('image')
+            .setDescription('Direct link to the faction image.')
+            .setRequired(true)
+    ),
+
+    new SlashCommandBuilder()
+    .setName('removegang')
+    .setDescription('Remove a gang from the faction database and delete its Discord roles.')
+    .addStringOption(option =>
+        option
+            .setName('gangname')
+            .setDescription('The faction you want to remove.')
+            .setRequired(true)
+            .setMaxLength(50)
     )
 
 ].map(command => command.toJSON());
@@ -993,7 +1034,9 @@ const LOGGED_COMMANDS = new Set([
     'gangblock',
     'gangtier',
     'gangrename',
-    'create-gangthread'
+    'create-gangthread',
+    'create-flagthread',
+    'removegang'
 ]);
 
 async function logSelectedCommand(interaction) {
@@ -1538,7 +1581,7 @@ if (interaction.commandName === 'create-gangthread') {
             await interaction.guild.channels.create({
 
                 name:
-                    `🏴・${gangName}`,
+                    `⚔️・${gangName}`,
 
                 type:
                     ChannelType.GuildForum,
@@ -1761,6 +1804,366 @@ if (interaction.commandName === 'create-gangthread') {
             content:
                 '❌ I could not create the faction Forum.\n\n' +
                 'Make sure the bot has permission to **Manage Channels**, **View Channels**, **Send Messages**, and **Manage Threads**.',
+
+            ephemeral:
+                true
+
+        });
+
+    }
+
+}
+
+// ==================================================
+// /create-flagthread
+// ==================================================
+
+if (interaction.commandName === 'create-flagthread') {
+
+    // ----------------------------------------------
+    // FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const FACTION_STAFF_ROLE_ID =
+        '1545272829891837973';
+
+    if (
+        !interaction.member.roles.cache.has(
+            FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/create-flagthread`.\n\n' +
+                'Only **Faction Staff** can create faction flag identifiers.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const gangName =
+        interaction.options
+            .getString('gangname')
+            .trim();
+
+    const color =
+        interaction.options
+            .getString('color')
+            .trim()
+            .toUpperCase();
+
+    const image =
+        interaction.options
+            .getString('image')
+            .trim();
+
+    // ----------------------------------------------
+    // VALIDATE COLOR
+    // ----------------------------------------------
+
+    if (!/^#[0-9A-F]{6}$/i.test(color)) {
+
+        return interaction.reply({
+            content:
+                '❌ Invalid color.\n\n' +
+                'Use a HEX color such as:\n' +
+                '`#FF0000`\n' +
+                '`#0066FF`\n' +
+                '`#800080`',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // VALIDATE IMAGE URL
+    // ----------------------------------------------
+
+    try {
+
+        new URL(image);
+
+    } catch {
+
+        return interaction.reply({
+            content:
+                '❌ The image link you provided is not a valid URL.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factions =
+        loadFactions();
+
+    const factionEntry =
+        Object.entries(factions).find(
+            ([, gang]) =>
+                gang &&
+                gang.name &&
+                gang.name.toLowerCase() ===
+                gangName.toLowerCase()
+        );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find **${gangName}** in the faction database.\n\n` +
+                `Make sure the faction has already been created with \`/creategang\`.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [
+        factionKey,
+        gang
+    ] = factionEntry;
+
+    // ----------------------------------------------
+    // GET FLAG FORUM
+    // ----------------------------------------------
+
+    const flagForum =
+        interaction.guild.channels.cache.get(
+            FLAG_FORUM_CHANNEL_ID
+        );
+
+    if (!flagForum) {
+
+        return interaction.reply({
+            content:
+                '❌ I could not find the Flag Forum Channel.\n\n' +
+                'Check `FLAG_FORUM_CHANNEL_ID` in your Railway variables.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // MAKE SURE IT IS A FORUM
+    // ----------------------------------------------
+
+    if (
+        flagForum.type !== ChannelType.GuildForum
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ The configured Flag Forum ID is not a Forum Channel.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // LOAD EXISTING FLAG DATA
+    // ----------------------------------------------
+
+    let flagThreads = {};
+
+    try {
+
+        if (
+            fs.existsSync(
+                FLAG_THREADS_FILE
+            )
+        ) {
+
+            flagThreads =
+                JSON.parse(
+                    fs.readFileSync(
+                        FLAG_THREADS_FILE,
+                        'utf8'
+                    )
+                );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not load flagThreads.json:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not load the flag thread database.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CHECK FOR EXISTING FLAG
+    // ----------------------------------------------
+
+    const existingFlag =
+        Object.values(flagThreads).find(
+            flag =>
+                flag &&
+                flag.name &&
+                flag.name.toLowerCase() ===
+                gangName.toLowerCase()
+        );
+
+    if (existingFlag) {
+
+        const existingThread =
+            flagForum.threads.cache.get(
+                existingFlag.threadId
+            );
+
+        if (existingThread) {
+
+            return interaction.reply({
+                content:
+                    `❌ **${gangName}** already has a flag identifier:\n${existingThread}`,
+                ephemeral: true
+            });
+
+        }
+
+        delete flagThreads[
+            existingFlag.threadId
+        ];
+
+    }
+
+    // ----------------------------------------------
+    // CREATE FLAG THREAD
+    // ----------------------------------------------
+
+    try {
+
+        const thread =
+            await flagForum.threads.create({
+
+                name:
+                    gangName,
+
+                message: {
+
+                    embeds: [
+                        {
+                            title:
+                                gangName,
+
+                            color:
+                                parseInt(
+                                    color.substring(1),
+                                    16
+                                ),
+
+                            image: {
+                                url:
+                                    image
+                            },
+
+                            footer: {
+                                text:
+                                    'Lynwood Factions • Flag Identifier'
+                            },
+
+                            timestamp:
+                                new Date().toISOString()
+                        }
+                    ]
+
+                },
+
+                reason:
+                    `Faction flag identifier created for ${gangName}`
+
+            });
+
+        // ------------------------------------------
+        // SAVE FLAG DATA
+        // ------------------------------------------
+
+        flagThreads[
+            thread.id
+        ] = {
+
+            factionKey:
+                factionKey,
+
+            name:
+                gangName,
+
+            color:
+                color,
+
+            image:
+                image,
+
+            threadId:
+                thread.id,
+
+            forumChannelId:
+                flagForum.id,
+
+            createdBy:
+                interaction.user.id,
+
+            createdAt:
+                new Date().toISOString()
+
+        };
+
+        // ------------------------------------------
+        // SAVE TO RAILWAY
+        // ------------------------------------------
+
+        fs.writeFileSync(
+            FLAG_THREADS_FILE,
+            JSON.stringify(
+                flagThreads,
+                null,
+                4
+            )
+        );
+
+        // ------------------------------------------
+        // SUCCESS
+        // ------------------------------------------
+
+        return interaction.reply({
+
+            content:
+                `✅ **Flag Identifier Created**\n\n` +
+                `🏴 **Faction:** ${gangName}\n` +
+                `🎨 **Color:** \`${color}\`\n` +
+                `🧵 **Thread:** ${thread}`,
+
+            ephemeral:
+                true
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            '❌ Error creating flag thread:',
+            error
+        );
+
+        return interaction.reply({
+
+            content:
+                '❌ I could not create the faction flag identifier.\n\n' +
+                'Make sure the bot has **View Channel**, **Send Messages**, and **Create Posts** permissions in the Flag Forum.',
 
             ephemeral:
                 true
@@ -2249,6 +2652,485 @@ if (interaction.commandName === 'creategang') {
 
     }
 
+// ==================================================
+// /removegang
+// ==================================================
+
+if (interaction.commandName === 'removegang') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID =
+        '1550018347804917760';
+
+    if (
+        !interaction.member.roles.cache.has(
+            HIGH_FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/removegang`.\n\n' +
+                'Only **High Faction Staff** can remove gangs.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET GANG NAME
+    // ----------------------------------------------
+
+    const gangName =
+        interaction.options
+            .getString('gangname')
+            .trim();
+
+    // ----------------------------------------------
+    // LOAD LATEST FACTION DATA
+    // ----------------------------------------------
+
+    const factions =
+        loadFactions();
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factionEntry =
+        Object.entries(factions).find(
+            ([, gang]) =>
+                gang &&
+                gang.name &&
+                gang.name.toLowerCase() ===
+                gangName.toLowerCase()
+        );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find **${gangName}** in the faction database.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [
+        factionKey,
+        gang
+    ] = factionEntry;
+
+    // ----------------------------------------------
+    // SAVE ROLE IDS BEFORE REMOVING DATABASE ENTRY
+    // ----------------------------------------------
+
+    const gangRoleId =
+        gang.gangRole;
+
+    const leaderRoleId =
+        gang.leaderRole;
+
+    // ----------------------------------------------
+    // DELETE GANG ROLE
+    // ----------------------------------------------
+
+    let gangRoleDeleted =
+        false;
+
+    let leaderRoleDeleted =
+        false;
+
+    try {
+
+        if (gangRoleId) {
+
+            const gangRole =
+                interaction.guild.roles.cache.get(
+                    gangRoleId
+                );
+
+            if (gangRole) {
+
+                await gangRole.delete(
+                    `Faction ${gangName} removed by ${interaction.user.tag}`
+                );
+
+                gangRoleDeleted =
+                    true;
+
+            }
+
+        }
+
+        // ------------------------------------------
+        // DELETE LEADER ROLE
+        // ------------------------------------------
+
+        if (leaderRoleId) {
+
+            const leaderRole =
+                interaction.guild.roles.cache.get(
+                    leaderRoleId
+                );
+
+            if (leaderRole) {
+
+                await leaderRole.delete(
+                    `Faction ${gangName} removed by ${interaction.user.tag}`
+                );
+
+                leaderRoleDeleted =
+                    true;
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not delete faction roles:',
+            error
+        );
+
+        return interaction.reply({
+
+            content:
+                `❌ I could not completely remove **${gangName}**.\n\n` +
+                `Make sure the bot has **Manage Roles** permission and that its highest role is above the faction roles.\n\n` +
+                `The faction database has **NOT** been changed.`,
+
+            ephemeral:
+                true
+
+        });
+
+    }
+
+    // ----------------------------------------------
+    // REMOVE FROM FACTION DATABASE
+    // ----------------------------------------------
+
+    delete factions[
+        factionKey
+    ];
+
+    if (!saveFactions(factions)) {
+
+        return interaction.reply({
+
+            content:
+                `⚠️ The Discord roles were removed, but I could not save the faction database.\n\n` +
+                `Faction: **${gangName}**\n` +
+                `Database slot: \`${factionKey}\``,
+
+            ephemeral:
+                true
+
+        });
+
+    }
+
+    // ----------------------------------------------
+    // REMOVE FLAG THREAD
+    // ----------------------------------------------
+
+    let flagThreadDeleted =
+        false;
+
+    try {
+
+        if (
+            fs.existsSync(
+                FLAG_THREADS_FILE
+            )
+        ) {
+
+            const flagThreads =
+                JSON.parse(
+                    fs.readFileSync(
+                        FLAG_THREADS_FILE,
+                        'utf8'
+                    )
+                );
+
+            const flagEntry =
+                Object.entries(flagThreads).find(
+                    ([, flag]) =>
+                        flag &&
+                        flag.name &&
+                        flag.name.toLowerCase() ===
+                        gangName.toLowerCase()
+                );
+
+            if (flagEntry) {
+
+                const [
+                    flagThreadId,
+                    flagData
+                ] = flagEntry;
+
+                const flagForum =
+                    interaction.guild.channels.cache.get(
+                        flagData.forumChannelId
+                    );
+
+                if (flagForum) {
+
+                    const flagThread =
+                        flagForum.threads.cache.get(
+                            flagData.threadId
+                        );
+
+                    if (flagThread) {
+
+                        await flagThread.delete(
+                            `Flag identifier removed with faction ${gangName}`
+                        );
+
+                        flagThreadDeleted =
+                            true;
+
+                    }
+
+                }
+
+                delete flagThreads[
+                    flagThreadId
+                ];
+
+                fs.writeFileSync(
+                    FLAG_THREADS_FILE,
+                    JSON.stringify(
+                        flagThreads,
+                        null,
+                        4
+                    )
+                );
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '⚠️ Could not remove flag thread:',
+            error
+        );
+
+    }
+
+    // ----------------------------------------------
+    // REMOVE GANG THREAD DATABASE ENTRY
+    // ----------------------------------------------
+
+    try {
+
+        if (
+            fs.existsSync(
+                GANG_THREADS_FILE
+            )
+        ) {
+
+            const gangThreads =
+                JSON.parse(
+                    fs.readFileSync(
+                        GANG_THREADS_FILE,
+                        'utf8'
+                    )
+                );
+
+            const gangThreadEntry =
+                Object.entries(gangThreads).find(
+                    ([, forum]) =>
+                        forum &&
+                        forum.name &&
+                        forum.name.toLowerCase() ===
+                        gangName.toLowerCase()
+                );
+
+            if (gangThreadEntry) {
+
+                const [
+                    forumId,
+                    forumData
+                ] = gangThreadEntry;
+
+                delete gangThreads[
+                    forumId
+                ];
+
+                fs.writeFileSync(
+                    GANG_THREADS_FILE,
+                    JSON.stringify(
+                        gangThreads,
+                        null,
+                        4
+                    )
+                );
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '⚠️ Could not remove gang thread database entry:',
+            error
+        );
+
+    }
+
+    // ----------------------------------------------
+    // LOG REMOVAL
+    // ----------------------------------------------
+
+    try {
+
+        const logChannel =
+            interaction.guild.channels.cache.get(
+                GANG_LOG_CHANNEL_ID
+            );
+
+        if (logChannel) {
+
+            await logChannel.send({
+
+                embeds: [
+                    {
+                        title:
+                            '🗑️ Faction Removed',
+
+                        description:
+                            `**${gangName}** has been removed from the faction database.`,
+
+                        color:
+                            0xED4245,
+
+                        fields: [
+
+                            {
+                                name:
+                                    '🏷️ Faction',
+
+                                value:
+                                    gangName,
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    '👤 Removed By',
+
+                                value:
+                                    `${interaction.user}`,
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    '📁 Database Slot',
+
+                                value:
+                                    factionKey,
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    '👥 Gang Role',
+
+                                value:
+                                    gangRoleDeleted
+                                        ? 'Deleted'
+                                        : 'Not Found',
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    '👑 Leader Role',
+
+                                value:
+                                    leaderRoleDeleted
+                                        ? 'Deleted'
+                                        : 'Not Found',
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    '🏴 Flag Identifier',
+
+                                value:
+                                    flagThreadDeleted
+                                        ? 'Deleted'
+                                        : 'Not Found',
+
+                                inline:
+                                    true
+                            }
+
+                        ],
+
+                        footer: {
+                            text:
+                                'Lynwood Factions • Faction Removed'
+                        },
+
+                        timestamp:
+                            new Date().toISOString()
+                    }
+                ]
+
+            });
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not log faction removal:',
+            error
+        );
+
+    }
+
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
+
+    return interaction.reply({
+
+        content:
+            `✅ **${gangName}** has been removed successfully.\n\n` +
+            `🗑️ Faction database entry removed\n` +
+            `👥 Gang role deleted\n` +
+            `👑 Gang Leader role deleted\n` +
+            `🏴 Flag identifier cleaned up: ${flagThreadDeleted ? 'Yes' : 'No'}`,
+
+        ephemeral:
+            true
+
+    });
+
+}
 
     // ==================================================
     // /gangremove
