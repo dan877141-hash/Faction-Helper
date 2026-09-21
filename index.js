@@ -1047,7 +1047,7 @@ async function logSelectedCommand(interaction) {
 
             embeds: [
                 {
-                    title: '📋 Faction Command Log',
+                    title: '⚙️ Command Logs',
 
                     color: 0x5865F2,
 
