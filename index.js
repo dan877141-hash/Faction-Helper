@@ -6,6 +6,7 @@ const {
     SlashCommandBuilder,
     REST,
     Routes,
+    ChannelType,
 } = require('discord.js');
 
 const fs = require('fs');
@@ -44,6 +45,9 @@ const FACTIONS_FILE =
 
 const ACTIVITY_FILE =
     path.join(DATA_DIR, 'activity.json');
+
+const GANG_THREADS_FILE =
+    path.join(DATA_DIR, 'gangThreads.json');
 
 // ======================================================
 // INITIALIZE PERSISTENT DATA
@@ -664,7 +668,18 @@ new SlashCommandBuilder()
             .setName('faction')
             .setDescription('The faction whose leader role will be given.')
             .setRequired(true)
-    )
+    ),
+
+        new SlashCommandBuilder()
+        .setName('create-gangthread')
+        .setDescription('Create a faction Forum Channel with its required threads.')
+        .addStringOption(option =>
+            option
+                .setName('gangname')
+                .setDescription('The name of the faction.')
+                .setRequired(true)
+                .setMaxLength(50)
+        )
 
 ].map(command => command.toJSON());
 
@@ -1295,6 +1310,242 @@ client.on('interactionCreate', async interaction => {
         });
 
     }
+
+// ==================================================
+// /create-gangthread
+// ==================================================
+
+if (interaction.commandName === 'create-gangthread') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ROLE
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID =
+        '1550018347804917760';
+
+    if (
+        !interaction.member.roles.cache.has(
+            HIGH_FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/create-gangthread`.\n\n' +
+                'Only **High Faction Staff** can create faction threads.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET GANG NAME
+    // ----------------------------------------------
+
+    const gangName =
+        interaction.options
+            .getString('gangname')
+            .trim();
+
+    if (!gangName) {
+
+        return interaction.reply({
+            content:
+                '❌ You must provide a valid faction name.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // LOAD EXISTING GANG THREAD DATA
+    // ----------------------------------------------
+
+    let gangThreads = {};
+
+    try {
+
+        if (fs.existsSync(GANG_THREADS_FILE)) {
+
+            gangThreads = JSON.parse(
+                fs.readFileSync(
+                    GANG_THREADS_FILE,
+                    'utf8'
+                )
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not load gangThreads.json:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not load the faction thread database.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CHECK FOR DUPLICATE
+    // ----------------------------------------------
+
+    const existingGang =
+        Object.values(gangThreads).find(
+            gang =>
+                gang.name.toLowerCase() ===
+                gangName.toLowerCase()
+        );
+
+    if (existingGang) {
+
+        return interaction.reply({
+            content:
+                `❌ A Forum Channel already exists for **${gangName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CREATE FORUM CHANNEL
+    // ----------------------------------------------
+
+    try {
+
+        const forumChannel =
+            await interaction.guild.channels.create({
+
+                name: `🏴・${gangName}`,
+
+                type: ChannelType.GuildForum,
+
+                reason:
+                    `Faction Forum created by ${interaction.user.tag}`
+
+            });
+
+        // ------------------------------------------
+        // THREAD NAMES
+        // ------------------------------------------
+
+        const threadNames = [
+            '💬 Gang Chat',
+            '🎥 Valid RP Clips',
+            '📋 Activity Check',
+            '📑 Roster Logs',
+            '🎥 Requested POV Clips'
+        ];
+
+        // ------------------------------------------
+        // CREATE FORUM POSTS
+        // ------------------------------------------
+
+        const createdThreads = {};
+
+        for (const threadName of threadNames) {
+
+            const thread =
+                await forumChannel.threads.create({
+
+                    name: threadName,
+
+                    message: {
+                        content:
+                            `# ${threadName}\n\n` +
+                            `**Faction:** ${gangName}\n\n` +
+                            `This thread is for **${gangName}** faction use.`
+                    },
+
+                    reason:
+                        `Faction Forum thread created for ${gangName}`
+
+                });
+
+            createdThreads[threadName] = {
+                threadId: thread.id,
+                threadName: thread.name
+            };
+
+        }
+
+        // ------------------------------------------
+        // SAVE DATA
+        // ------------------------------------------
+
+        gangThreads[forumChannel.id] = {
+
+            name: gangName,
+
+            forumChannelId:
+                forumChannel.id,
+
+            createdBy:
+                interaction.user.id,
+
+            createdAt:
+                new Date().toISOString(),
+
+            threads:
+                createdThreads
+
+        };
+
+        fs.writeFileSync(
+            GANG_THREADS_FILE,
+            JSON.stringify(
+                gangThreads,
+                null,
+                4
+            )
+        );
+
+        // ------------------------------------------
+        // SUCCESS MESSAGE
+        // ------------------------------------------
+
+        return interaction.reply({
+
+            content:
+                `✅ Successfully created the faction Forum Channel for **${gangName}**.\n\n` +
+                `${forumChannel}\n\n` +
+                `**Threads created:**\n` +
+                `💬 Gang Chat\n` +
+                `🎥 Valid RP Clips\n` +
+                `📋 Activity Check\n` +
+                `📑 Roster Logs\n` +
+                `🎥 Requested POV Clips`,
+
+            ephemeral: true
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            '❌ Error creating faction Forum Channel:',
+            error
+        );
+
+        return interaction.reply({
+
+            content:
+                '❌ I could not create the faction Forum Channel.\n\n' +
+                'Make sure the bot has **Manage Channels**, **View Channel**, **Send Messages**, and **Create Posts** permissions.',
+
+            ephemeral: true
+
+        });
+
+    }
+
+}
     
 // ==================================================
 // /creategang
