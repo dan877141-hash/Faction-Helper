@@ -3785,11 +3785,16 @@ if (interaction.commandName === 'removegang') {
 
     if (interaction.commandName === 'ganglist') {
 
-        const gangs = Object.values(GANGS).filter(
-            gang =>
-                gang.leaderRole &&
-                gang.gangRole
-        );
+    // Load the CURRENT faction database
+    const factions = loadFactions();
+
+    const gangs = Object.values(factions).filter(
+        gang =>
+            gang &&
+            gang.name &&
+            gang.leaderRole &&
+            gang.gangRole
+    );
 
         if (gangs.length === 0) {
 
@@ -3801,35 +3806,37 @@ if (interaction.commandName === 'removegang') {
 
         }
 
-        const gangList = gangs
-            .map((gang, index) => {
+      const gangList = (
+    await Promise.all(
+        gangs.map(async (gang, index) => {
 
-                const leaderRole =
-                    interaction.guild.roles.cache.get(
-                        gang.leaderRole
-                    );
+            const leaderRole =
+                await interaction.guild.roles.fetch(
+                    gang.leaderRole
+                ).catch(() => null);
 
-                const gangRole =
-                    interaction.guild.roles.cache.get(
-                        gang.gangRole
-                    );
+            const gangRole =
+                await interaction.guild.roles.fetch(
+                    gang.gangRole
+                ).catch(() => null);
 
-                return (
-                    `**${index + 1}. ${gang.name}**\n` +
-                    `👑 Leader Role: ${
-                        leaderRole
-                            ? `<@&${gang.leaderRole}>`
-                            : 'Not Found'
-                    }\n` +
-                    `👥 Members: ${
-                        gangRole
-                            ? gangRole.members.size
-                            : 0
-                    }`
-                );
+            return (
+                `**${index + 1}. ${gang.name}**\n` +
+                `👑 Leader Role: ${
+                    leaderRole
+                        ? `<@&${gang.leaderRole}>`
+                        : 'Not Found'
+                }\n` +
+                `👥 Members: ${
+                    gangRole
+                        ? gangRole.members.size
+                        : 0
+                }`
+            );
 
-            })
-            .join('\n\n');
+        })
+    )
+).join('\n\n');
 
         const gangListEmbed = {
 
@@ -3892,37 +3899,40 @@ const gangs =
 
         }
 
-        const leaderList = gangs
-            .map((gang, index) => {
+        const leaderList = (
+    await Promise.all(
+        gangs.map(async (gang, index) => {
 
-                const leaderRole =
-                    interaction.guild.roles.cache.get(
-                        gang.leaderRole
-                    );
+            const leaderRole =
+                await interaction.guild.roles.fetch(
+                    gang.leaderRole
+                ).catch(() => null);
 
-                if (!leaderRole) {
-
-                    return (
-                        `**${index + 1}. ${gang.name}**\n` +
-                        `👑 Leader Role: Not Found\n` +
-                        `👤 Leader: Not Found`
-                    );
-
-                }
-
-                const leaders = leaderRole.members;
-
-                const leaderMentions = leaders.size > 0
-                    ? leaders.map(member => `${member}`).join(', ')
-                    : 'No leader assigned';
+            if (!leaderRole) {
 
                 return (
                     `**${index + 1}. ${gang.name}**\n` +
-                    `👑 Leader: ${leaderMentions}`
+                    `👑 Leader Role: Not Found\n` +
+                    `👤 Leader: Not Found`
                 );
 
-            })
-            .join('\n\n');
+            }
+
+            const leaders = leaderRole.members;
+
+            const leaderMentions =
+                leaders.size > 0
+                    ? leaders.map(member => `${member}`).join(', ')
+                    : 'No leader assigned';
+
+            return (
+                `**${index + 1}. ${gang.name}**\n` +
+                `👑 Leader: ${leaderMentions}`
+            );
+
+        })
+    )
+).join('\n\n');
 
         const leaderEmbed = {
 
