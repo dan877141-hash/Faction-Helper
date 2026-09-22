@@ -5725,11 +5725,11 @@ if (interaction.commandName === 'gangtransactions') {
 
 if (interaction.commandName === 'activity') {
 
+    const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+
     // ----------------------------------------------
     // HIGH FACTION STAFF ONLY
     // ----------------------------------------------
-
-    const FACTION_STAFF_ROLE_ID = '1545272829891837973';
 
     if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
 
@@ -5746,33 +5746,51 @@ if (interaction.commandName === 'activity') {
     // GET INFORMATION
     // ----------------------------------------------
 
-    const faction =
+    const factionInput =
         interaction.options.getString('faction');
 
     const action =
         interaction.options.getString('action');
 
-    // ----------------------------------------------
-    // FIND FACTION
-    // ----------------------------------------------
-
-    const factionData = Object.values(GANGS).find(
-        gang =>
-            gang.name.toLowerCase() === faction.toLowerCase()
-    );
-
-    if (!factionData) {
+    if (!factionInput || !action) {
 
         return interaction.reply({
             content:
-                `❌ I could not find a registered faction named **${faction}**.`,
+                '❌ You must provide both a faction and an activity.',
             ephemeral: true
         });
 
     }
 
     // ----------------------------------------------
-    // ACTIVITY FILE
+    // ALWAYS LOAD CURRENT FACTION DATA
+    // ----------------------------------------------
+
+    const latestFactions = loadFactions();
+
+    const factionEntry =
+        Object.entries(latestFactions).find(
+            ([key, gang]) =>
+                gang &&
+                gang.name &&
+                gang.name.toLowerCase() ===
+                factionInput.toLowerCase()
+        );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered faction named **${factionInput}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [gangKey, factionData] = factionEntry;
+
+    // ----------------------------------------------
+    // LOAD ACTIVITY FILE
     // ----------------------------------------------
 
     let activities = [];
@@ -5781,12 +5799,16 @@ if (interaction.commandName === 'activity') {
 
         try {
 
-            activities = JSON.parse(
+            const rawData =
                 fs.readFileSync(
                     ACTIVITY_FILE,
                     'utf8'
-                )
-            );
+                );
+
+            activities =
+                rawData.trim()
+                    ? JSON.parse(rawData)
+                    : [];
 
             if (!Array.isArray(activities)) {
                 activities = [];
@@ -5799,7 +5821,11 @@ if (interaction.commandName === 'activity') {
                 error
             );
 
-            activities = [];
+            return interaction.reply({
+                content:
+                    '❌ I could not read the faction activity file.',
+                ephemeral: true
+            });
 
         }
 
@@ -5811,18 +5837,30 @@ if (interaction.commandName === 'activity') {
 
     const activityRecord = {
 
-        id: Date.now().toString(),
+        id:
+            `${Date.now()}-${interaction.user.id}`,
 
-        faction: factionData.name,
+        faction:
+            factionData.name,
+
+        factionKey:
+            gangKey,
 
         recordedBy: {
-            id: interaction.user.id,
-            username: interaction.user.tag
+
+            id:
+                interaction.user.id,
+
+            username:
+                interaction.user.tag
+
         },
 
-        action: action,
+        action:
+            action,
 
-        timestamp: new Date().toISOString()
+        timestamp:
+            new Date().toISOString()
 
     };
 
@@ -5840,7 +5878,8 @@ if (interaction.commandName === 'activity') {
                 activities,
                 null,
                 2
-            )
+            ),
+            'utf8'
         );
 
     } catch (error) {
@@ -5873,19 +5912,22 @@ if (interaction.commandName === 'activity') {
 
             {
                 name: '🏴 Faction',
-                value: factionData.name,
+                value:
+                    factionData.name,
                 inline: true
             },
 
             {
                 name: '👤 Recorded By',
-                value: `${interaction.user}`,
+                value:
+                    `${interaction.user}`,
                 inline: true
             },
 
             {
                 name: '📋 Activity',
-                value: action,
+                value:
+                    action,
                 inline: false
             }
 
@@ -5903,7 +5945,9 @@ if (interaction.commandName === 'activity') {
 
     return interaction.reply({
 
-        embeds: [activityEmbed],
+        embeds: [
+            activityEmbed
+        ],
 
         ephemeral: true
 
@@ -6080,9 +6124,16 @@ if (interaction.commandName === 'inactive') {
 
 if (interaction.commandName === 'activitylog') {
 
-    const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+    const FACTION_STAFF_ROLE_ID =
+        '1545272829891837973';
 
-    if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+    // ----------------------------------------------
+    // STAFF CHECK
+    // ----------------------------------------------
+
+    if (!interaction.member.roles.cache.has(
+        FACTION_STAFF_ROLE_ID
+    )) {
 
         return interaction.reply({
             content:
@@ -6092,8 +6143,16 @@ if (interaction.commandName === 'activitylog') {
 
     }
 
-    const faction =
+    // ----------------------------------------------
+    // GET FACTION
+    // ----------------------------------------------
+
+    const factionInput =
         interaction.options.getString('faction');
+
+    // ----------------------------------------------
+    // LOAD ACTIVITY DATA
+    // ----------------------------------------------
 
     let activities = [];
 
@@ -6101,36 +6160,90 @@ if (interaction.commandName === 'activitylog') {
 
         try {
 
-            activities = JSON.parse(
+            const rawData =
                 fs.readFileSync(
                     ACTIVITY_FILE,
                     'utf8'
-                )
-            );
+                );
+
+            activities =
+                rawData.trim()
+                    ? JSON.parse(rawData)
+                    : [];
+
+            if (!Array.isArray(activities)) {
+                activities = [];
+            }
 
         } catch (error) {
 
-            console.error(error);
+            console.error(
+                '❌ Could not read activity.json:',
+                error
+            );
 
-            activities = [];
+            return interaction.reply({
+                content:
+                    '❌ I could not read the faction activity file.',
+                ephemeral: true
+            });
 
         }
 
     }
 
-    if (faction) {
+    // ----------------------------------------------
+    // FILTER FACTION
+    // ----------------------------------------------
 
-        activities = activities.filter(
-            activity =>
-                activity.faction &&
-                activity.faction.toLowerCase() ===
-                faction.toLowerCase()
-        );
+    if (factionInput) {
+
+        const latestFactions =
+            loadFactions();
+
+        const factionEntry =
+            Object.entries(latestFactions).find(
+                ([key, gang]) =>
+                    gang &&
+                    gang.name &&
+                    gang.name.toLowerCase() ===
+                    factionInput.toLowerCase()
+            );
+
+        if (!factionEntry) {
+
+            return interaction.reply({
+                content:
+                    `❌ I could not find a registered faction named **${factionInput}**.`,
+                ephemeral: true
+            });
+
+        }
+
+        const actualFactionName =
+            factionEntry[1].name;
+
+        activities =
+            activities.filter(
+                activity =>
+                    activity.faction &&
+                    activity.faction.toLowerCase() ===
+                    actualFactionName.toLowerCase()
+            );
 
     }
 
+    // ----------------------------------------------
+    // SORT NEWEST FIRST
+    // ----------------------------------------------
+
     activities =
         activities
+            .filter(
+                activity =>
+                    activity &&
+                    activity.timestamp
+            )
             .sort(
                 (a, b) =>
                     new Date(b.timestamp) -
@@ -6138,47 +6251,68 @@ if (interaction.commandName === 'activitylog') {
             )
             .slice(0, 15);
 
+    // ----------------------------------------------
+    // NO RESULTS
+    // ----------------------------------------------
+
     if (activities.length === 0) {
 
         return interaction.reply({
             content:
-                faction
-                    ? `🚫 No activity has been recorded for **${faction}**.`
+                factionInput
+                    ? `🚫 No activity has been recorded for **${factionInput}**.`
                     : '❌ No faction activity has been recorded.',
             ephemeral: true
         });
 
     }
 
+    // ----------------------------------------------
+    // BUILD LOG
+    // ----------------------------------------------
+
     const logText =
         activities
             .map((activity, index) => {
 
-                const timestamp =
-                    `<t:${Math.floor(
-                        new Date(activity.timestamp).getTime() / 1000
-                    )}:R>`;
+                const unixTimestamp =
+                    Math.floor(
+                        new Date(
+                            activity.timestamp
+                        ).getTime() / 1000
+                    );
+
+                const recordedBy =
+                    activity.recordedBy &&
+                    activity.recordedBy.id
+                        ? `<@${activity.recordedBy.id}>`
+                        : 'Unknown Staff';
 
                 return (
                     `**${index + 1}. ${activity.faction}**\n` +
                     `📋 ${activity.action}\n` +
-                    `👤 Recorded By: <@${activity.recordedBy.id}>\n` +
-                    `🕒 ${timestamp}`
+                    `👤 Recorded By: ${recordedBy}\n` +
+                    `🕒 <t:${unixTimestamp}:R>`
                 );
 
             })
             .join('\n\n');
+
+    // ----------------------------------------------
+    // EMBED
+    // ----------------------------------------------
 
     const activityEmbed = {
 
         color: 0xFF8C00,
 
         title:
-            faction
-                ? `🏴 ACTIVITY LOG • ${faction}`
+            factionInput
+                ? `🏴 ACTIVITY LOG • ${factionInput}`
                 : '🏴 LYNWOOD FACTIONS • ACTIVITY LOG',
 
-        description: logText,
+        description:
+            logText,
 
         footer: {
             text:
@@ -6192,7 +6326,9 @@ if (interaction.commandName === 'activitylog') {
 
     return interaction.reply({
 
-        embeds: [activityEmbed],
+        embeds: [
+            activityEmbed
+        ],
 
         ephemeral: true
 
@@ -6206,13 +6342,16 @@ if (interaction.commandName === 'activitylog') {
 
 if (interaction.commandName === 'factionstats') {
 
-    const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+    const FACTION_STAFF_ROLE_ID =
+        '1545272829891837973';
 
     // ----------------------------------------------
-    // CHECK FACTION STAFF
+    // STAFF CHECK
     // ----------------------------------------------
 
-    if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+    if (!interaction.member.roles.cache.has(
+        FACTION_STAFF_ROLE_ID
+    )) {
 
         return interaction.reply({
             content:
@@ -6240,12 +6379,16 @@ if (interaction.commandName === 'factionstats') {
     }
 
     // ----------------------------------------------
-    // FIND FACTION
+    // ALWAYS LOAD CURRENT FACTIONS
     // ----------------------------------------------
 
+    const latestFactions =
+        loadFactions();
+
     const factionEntry =
-        Object.entries(GANGS).find(
+        Object.entries(latestFactions).find(
             ([key, gang]) =>
+                gang &&
                 gang.name &&
                 gang.name.toLowerCase() ===
                 factionName.toLowerCase()
@@ -6261,24 +6404,49 @@ if (interaction.commandName === 'factionstats') {
 
     }
 
-    const [gangKey, faction] = factionEntry;
+    const [gangKey, faction] =
+        factionEntry;
 
     // ----------------------------------------------
-    // FIND FACTION ROLE
+    // FETCH GANG ROLE
     // ----------------------------------------------
 
-    const gangRole =
-        interaction.guild.roles.cache.get(
-            faction.gangRole
-        );
+    let gangRole = null;
 
-    const memberCount =
-        gangRole
-            ? gangRole.members.size
-            : 0;
+    if (faction.gangRole) {
+
+        gangRole =
+            await interaction.guild.roles.fetch(
+                faction.gangRole
+            ).catch(() => null);
+
+    }
 
     // ----------------------------------------------
-    // ACTIVITY
+    // FETCH MEMBERS
+    // ----------------------------------------------
+
+    let memberCount = 0;
+
+    if (gangRole) {
+
+        // Make sure member cache is populated
+        await interaction.guild.members
+            .fetch()
+            .catch(() => null);
+
+        memberCount =
+            interaction.guild.members.cache.filter(
+                member =>
+                    member.roles.cache.has(
+                        faction.gangRole
+                    )
+            ).size;
+
+    }
+
+    // ----------------------------------------------
+    // LOAD ACTIVITY
     // ----------------------------------------------
 
     let activities = [];
@@ -6287,12 +6455,16 @@ if (interaction.commandName === 'factionstats') {
 
         try {
 
-            activities = JSON.parse(
+            const rawData =
                 fs.readFileSync(
                     ACTIVITY_FILE,
                     'utf8'
-                )
-            );
+                );
+
+            activities =
+                rawData.trim()
+                    ? JSON.parse(rawData)
+                    : [];
 
             if (!Array.isArray(activities)) {
                 activities = [];
@@ -6331,10 +6503,42 @@ if (interaction.commandName === 'factionstats') {
     // ----------------------------------------------
 
     const balance =
-    typeof factionMoney[faction.name] === 'number'
-        ? factionMoney[faction.name]
-        : 0;
-    
+        typeof factionMoney[faction.name] === 'number'
+            ? factionMoney[faction.name]
+            : 0;
+
+    // ----------------------------------------------
+    // FIND LEADERS
+    // ----------------------------------------------
+
+    let leaderText =
+        'No leader assigned';
+
+    if (faction.leaderRole) {
+
+        await interaction.guild.members
+            .fetch()
+            .catch(() => null);
+
+        const leaders =
+            interaction.guild.members.cache.filter(
+                member =>
+                    member.roles.cache.has(
+                        faction.leaderRole
+                    )
+            );
+
+        if (leaders.size > 0) {
+
+            leaderText =
+                leaders
+                    .map(member => `${member}`)
+                    .join(', ');
+
+        }
+
+    }
+
     // ----------------------------------------------
     // DISPLAY
     // ----------------------------------------------
@@ -6349,20 +6553,30 @@ if (interaction.commandName === 'factionstats') {
         fields: [
 
             {
+                name: '👑 Leader',
+                value:
+                    leaderText,
+                inline: false
+            },
+
+            {
                 name: '👥 Members',
-                value: `${memberCount}`,
+                value:
+                    `${memberCount}`,
                 inline: true
             },
 
             {
                 name: '📋 Activities',
-                value: `${factionActivities.length}`,
+                value:
+                    `${factionActivities.length}`,
                 inline: true
             },
 
             {
                 name: '❌ Active Strikes',
-                value: `${strikes.length}`,
+                value:
+                    `${strikes.length}`,
                 inline: true
             },
 
@@ -6387,13 +6601,31 @@ if (interaction.commandName === 'factionstats') {
                     faction.tier ||
                     'Not Assigned',
                 inline: true
+            },
+
+            {
+                name: '🏷️ Faction Role',
+                value:
+                    faction.gangRole
+                        ? `<@&${faction.gangRole}>`
+                        : 'Not Assigned',
+                inline: false
+            },
+
+            {
+                name: '👑 Leader Role',
+                value:
+                    faction.leaderRole
+                        ? `<@&${faction.leaderRole}>`
+                        : 'Not Assigned',
+                inline: false
             }
 
         ],
 
         footer: {
             text:
-                'Lynwood • Faction Statistics'
+                `Lynwood Factions • ${gangKey}`
         },
 
         timestamp:
@@ -6403,7 +6635,9 @@ if (interaction.commandName === 'factionstats') {
 
     return interaction.reply({
 
-        embeds: [statsEmbed],
+        embeds: [
+            statsEmbed
+        ],
 
         ephemeral: true
 
