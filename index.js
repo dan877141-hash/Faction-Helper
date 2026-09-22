@@ -3871,17 +3871,15 @@ if (interaction.commandName === 'removegang') {
 
     }
 
-    // ==================================================
-    // /gangleader
-    // ==================================================
+// ==================================================
+// /gangleader
+// ==================================================
 
-    if (interaction.commandName === 'gangleader') {
+if (interaction.commandName === 'gangleader') {
 
-       const latestFactions =
-    loadFactions();
+    const latestFactions = loadFactions();
 
-const gangs =
-    Object.values(latestFactions).filter(
+    const gangs = Object.values(latestFactions).filter(
         gang =>
             gang &&
             gang.name &&
@@ -3889,83 +3887,95 @@ const gangs =
             gang.gangRole
     );
 
-        if (gangs.length === 0) {
-
-            return interaction.reply({
-                content:
-                    '🏴 There are currently no registered factions.',
-                ephemeral: true
-            });
-
-        }
-
-        const leaderList = (
-    await Promise.all(
-        gangs.map(async (gang, index) => {
-
-            const leaderRole =
-                await interaction.guild.roles.fetch(
-                    gang.leaderRole
-                ).catch(() => null);
-
-            if (!leaderRole) {
-
-                return (
-                    `**${index + 1}. ${gang.name}**\n` +
-                    `👑 Leader Role: Not Found\n` +
-                    `👤 Leader: Not Found`
-                );
-
-            }
-
-            const leaders = leaderRole.members;
-
-            const leaderMentions =
-                leaders.size > 0
-                    ? leaders.map(member => `${member}`).join(', ')
-                    : 'No leader assigned';
-
-            return (
-                `**${index + 1}. ${gang.name}**\n` +
-                `👑 Leader: ${leaderMentions}`
-            );
-
-        })
-    )
-).join('\n\n');
-
-        const leaderEmbed = {
-
-            color: 0xFF8C00,
-
-            title:
-                '👑 LYNWOOD FACTIONS • GANG LEADERS',
-
-            description:
-                'Here are the current registered faction leaders.\n\n' +
-                leaderList,
-
-            footer: {
-                text:
-                    `Lynwood Factions • ${gangs.length} Registered Faction${
-                        gangs.length === 1 ? '' : 's'
-                    }`
-            },
-
-            timestamp:
-                new Date().toISOString()
-
-        };
+    if (gangs.length === 0) {
 
         return interaction.reply({
-
-            embeds: [leaderEmbed],
-
+            content:
+                '🏴 There are currently no registered factions.',
             ephemeral: true
-
         });
 
     }
+
+    // Make sure Discord.js has the current guild members
+    await interaction.guild.members.fetch().catch(() => null);
+
+    const leaderList = (
+        await Promise.all(
+            gangs.map(async (gang, index) => {
+
+                const leaderRole =
+                    await interaction.guild.roles.fetch(
+                        gang.leaderRole
+                    ).catch(() => null);
+
+                if (!leaderRole) {
+
+                    return (
+                        `**${index + 1}. ${gang.name}**\n` +
+                        `👑 Leader Role: Not Found\n` +
+                        `👤 Leader: Not Found`
+                    );
+
+                }
+
+                // Find members who currently have this leader role
+                const leaders =
+                    interaction.guild.members.cache.filter(
+                        member =>
+                            member.roles.cache.has(
+                                gang.leaderRole
+                            )
+                    );
+
+                const leaderMentions =
+                    leaders.size > 0
+                        ? leaders
+                            .map(member => `${member}`)
+                            .join(', ')
+                        : 'No leader assigned';
+
+                return (
+                    `**${index + 1}. ${gang.name}**\n` +
+                    `👑 Leader: ${leaderMentions}`
+                );
+
+            })
+        )
+    ).join('\n\n');
+
+    const leaderEmbed = {
+
+        color: 0xFF8C00,
+
+        title:
+            '👑 LYNWOOD FACTIONS • GANG LEADERS',
+
+        description:
+            'Here are the current registered faction leaders.\n\n' +
+            leaderList,
+
+        footer: {
+            text:
+                `Lynwood Factions • ${gangs.length} Registered Faction${
+                    gangs.length === 1 ? '' : 's'
+                }`
+        },
+
+        timestamp:
+            new Date().toISOString()
+
+    };
+
+    return interaction.reply({
+
+        embeds: [leaderEmbed],
+
+        ephemeral: true
+
+    });
+
+}
 
     // ==================================================
     // /gangtransfer
