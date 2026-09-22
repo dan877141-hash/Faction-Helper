@@ -722,6 +722,17 @@ new SlashCommandBuilder()
             .setDescription('The faction you want to remove.')
             .setRequired(true)
             .setMaxLength(50)
+    ),
+
+    new SlashCommandBuilder()
+    .setName('removeflagthread')
+    .setDescription('Remove a faction Flag Identifier thread.')
+    .addStringOption(option =>
+        option
+            .setName('gangname')
+            .setDescription('The faction whose flag identifier should be removed.')
+            .setRequired(true)
+            .setMaxLength(50)
     )
 
 ].map(command => command.toJSON());
@@ -2390,6 +2401,318 @@ if (interaction.commandName === 'creategang') {
             `🏆 **Tier:** Not Assigned\n\n` +
             `The gang has been added to \`factions.json\` and is now connected to the faction system.`,
         ephemeral: true
+    });
+
+}
+
+// ==================================================
+// /removeflagthread
+// ==================================================
+
+if (interaction.commandName === 'removeflagthread') {
+
+    const FACTION_STAFF_ROLE_ID =
+        '1545272829891837973';
+
+    // ----------------------------------------------
+    // PERMISSION CHECK
+    // ----------------------------------------------
+
+    if (
+        !interaction.member.roles.cache.has(
+            FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/removeflagthread`.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET GANG NAME
+    // ----------------------------------------------
+
+    const gangName =
+        interaction.options
+            .getString('gangname')
+            .trim();
+
+    // ----------------------------------------------
+    // LOAD FLAG DATA
+    // ----------------------------------------------
+
+    let flagThreads = {};
+
+    try {
+
+        if (
+            fs.existsSync(
+                FLAG_THREADS_FILE
+            )
+        ) {
+
+            flagThreads =
+                JSON.parse(
+                    fs.readFileSync(
+                        FLAG_THREADS_FILE,
+                        'utf8'
+                    )
+                );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not load flagThreads.json:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not load the Flag Identifier database.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // FIND FLAG
+    // ----------------------------------------------
+
+    const flagEntry =
+        Object.entries(flagThreads).find(
+            ([, flag]) =>
+                flag &&
+                flag.name &&
+                flag.name.toLowerCase() ===
+                gangName.toLowerCase()
+        );
+
+    if (!flagEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ No Flag Identifier was found for **${gangName}**.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [
+        flagDatabaseId,
+        flagData
+    ] = flagEntry;
+
+    // ----------------------------------------------
+    // FIND FORUM
+    // ----------------------------------------------
+
+    const flagForum =
+        interaction.guild.channels.cache.get(
+            flagData.forumChannelId
+        );
+
+    let threadDeleted =
+        false;
+
+    try {
+
+        if (flagForum) {
+
+            let flagThread =
+                flagForum.threads.cache.get(
+                    flagData.threadId
+                );
+
+            // Try fetching the thread if it isn't cached
+            if (!flagThread) {
+
+                try {
+
+                    flagThread =
+                        await flagForum.threads.fetch(
+                            flagData.threadId
+                        );
+
+                } catch {
+
+                    flagThread =
+                        null;
+
+                }
+
+            }
+
+            if (flagThread) {
+
+                await flagThread.delete(
+                    `Flag Identifier removed for ${gangName} by ${interaction.user.tag}`
+                );
+
+                threadDeleted =
+                    true;
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not delete Flag Identifier thread:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                `❌ I found the Flag Identifier for **${gangName}**, but I could not delete the Discord thread.\n\n` +
+                `Make sure the bot has **Manage Threads** permission in the Flag Forum.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // REMOVE FROM DATABASE
+    // ----------------------------------------------
+
+    delete flagThreads[
+        flagDatabaseId
+    ];
+
+    try {
+
+        fs.writeFileSync(
+            FLAG_THREADS_FILE,
+            JSON.stringify(
+                flagThreads,
+                null,
+                4
+            )
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not save flagThreads.json:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '⚠️ The Flag Identifier thread was deleted, but I could not update the database.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // LOG
+    // ----------------------------------------------
+
+    try {
+
+        const logChannel =
+            interaction.guild.channels.cache.get(
+                GANG_LOG_CHANNEL_ID
+            );
+
+        if (logChannel) {
+
+            await logChannel.send({
+
+                embeds: [
+                    {
+                        title:
+                            '🗑️ Flag Identifier Removed',
+
+                        description:
+                            `The Flag Identifier for **${gangName}** has been removed.`,
+
+                        color:
+                            0xED4245,
+
+                        fields: [
+
+                            {
+                                name:
+                                    '⚔️ Faction',
+
+                                value:
+                                    gangName,
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    '❌ Removed By',
+
+                                value:
+                                    `${interaction.user}`,
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    '🏮 Thread',
+
+                                value:
+                                    threadDeleted
+                                        ? 'Deleted'
+                                        : 'Already Deleted',
+
+                                inline:
+                                    true
+                            }
+
+                        ],
+
+                        footer: {
+                            text:
+                                'Factions • Flag Identifier Removal'
+
+                        },
+                        timestamp:
+                            new Date().toISOString()
+                    }
+                ]
+
+            });
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not log Flag Identifier removal:',
+            error
+        );
+
+    }
+
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
+
+    return interaction.reply({
+
+        content:
+            `✅ The Flag Identifier for **${gangName}** has been removed.\n\n` +
+            `🧵 Thread deleted: **${threadDeleted ? 'Yes' : 'Already deleted'}**\n` +
+            `💾 Database entry removed: **Yes**`,
+
+        ephemeral:
+            true
+
     });
 
 }
@@ -6319,6 +6642,135 @@ client.on('messageCreate', async message => {
     });
 
     return;
+}
+
+// ======================================================
+// !claimedflags — Faction Staff Only
+// ======================================================
+
+if (
+    message.content.trim().toLowerCase() ===
+    '!claimedflags'
+) {
+
+    // ----------------------------------------------
+    // FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const FACTION_STAFF_ROLE_ID =
+        '1545272829891837973';
+
+    if (
+        !message.member.roles.cache.has(
+            FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        const deniedMessage =
+            await message.reply({
+
+                content:
+                    '❌ You do not have permission to use `!claimedflags`.\n\n' +
+                    'Only **Faction Staff** can use this command.'
+
+            });
+
+        setTimeout(() => {
+
+            deniedMessage
+                .delete()
+                .catch(() => {});
+
+        }, 5000);
+
+        return;
+
+    }
+
+    // ----------------------------------------------
+    // GET FLAG FORUM
+    // ----------------------------------------------
+
+    const FLAG_FORUM_CHANNEL_ID =
+        process.env.FLAG_FORUM_CHANNEL_ID;
+
+    const flagForum =
+        message.guild.channels.cache.get(
+            FLAG_FORUM_CHANNEL_ID
+        );
+
+    if (!flagForum) {
+
+        const errorMessage =
+            await message.reply(
+                '❌ The Flag Identifier Forum could not be found.'
+            );
+
+        setTimeout(() => {
+
+            errorMessage
+                .delete()
+                .catch(() => {});
+
+        }, 5000);
+
+        return;
+
+    }
+
+    // ----------------------------------------------
+    // DELETE COMMAND MESSAGE
+    // ----------------------------------------------
+
+    await message
+        .delete()
+        .catch(() => {});
+
+    // ----------------------------------------------
+    // CLAIMED FLAGS EMBED
+    // ----------------------------------------------
+
+    const claimedFlagsEmbed = {
+
+        color:
+            0xFF8C00,
+
+        title:
+            '🚩 LYNWOOD FACTIONS • CLAIMED FLAG IDENTIFIERS',
+
+        description:
+            'Looking for the current **Faction Flag Identifiers**?\n\n' +
+
+            '📖 **[Click Here to View the Claimed Flag Identifiers](https://discord.com/channels/1387016155050283100/1549679698563563570)**\n\n' +
+
+            'Please check the current identifiers before selecting one for your faction.\n\n',
+
+        footer: {
+
+            text:
+                'Lynwood • Claimed Flag Identifiers'
+
+        },
+
+        timestamp:
+            new Date().toISOString()
+
+    };
+
+    // ----------------------------------------------
+    // SEND EMBED
+    // ----------------------------------------------
+
+    await message.channel.send({
+
+        embeds: [
+            claimedFlagsEmbed
+        ]
+
+    });
+
+    return;
+
 }
 
     // !newgangs — Faction Staff Only
