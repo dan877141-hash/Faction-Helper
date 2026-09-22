@@ -1614,9 +1614,7 @@ if (interaction.commandName === 'create-gangthread') {
                             'ViewChannel',
                             'SendMessages',
                             'ReadMessageHistory',
-                            'SendMessagesInThreads',
-                            'CreatePublicThreads',
-                            'ManageThreads'
+                            'SendMessagesInThreads'
                         ]
                     },
 
@@ -1629,8 +1627,7 @@ if (interaction.commandName === 'create-gangthread') {
                             'ViewChannel',
                             'SendMessages',
                             'ReadMessageHistory',
-                            'SendMessagesInThreads',
-                            'CreatePublicThreads'
+                            'SendMessagesInThreads'
                         ]
                     },
 
