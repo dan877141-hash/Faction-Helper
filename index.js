@@ -5961,9 +5961,16 @@ if (interaction.commandName === 'activity') {
 
 if (interaction.commandName === 'inactive') {
 
-    const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+    const FACTION_STAFF_ROLE_ID =
+        '1545272829891837973';
 
-    if (!interaction.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
+    // ----------------------------------------------
+    // FACTION STAFF CHECK
+    // ----------------------------------------------
+
+    if (!interaction.member.roles.cache.has(
+        FACTION_STAFF_ROLE_ID
+    )) {
 
         return interaction.reply({
             content:
@@ -5974,18 +5981,54 @@ if (interaction.commandName === 'inactive') {
 
     }
 
+    // ----------------------------------------------
+    // LOAD CURRENT FACTIONS
+    // ----------------------------------------------
+
+    const latestFactions =
+        loadFactions();
+
+    const factions =
+        Object.values(latestFactions).filter(
+            gang =>
+                gang &&
+                gang.name
+        );
+
+    if (factions.length === 0) {
+
+        return interaction.reply({
+            content:
+                '❌ There are currently no registered factions.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // LOAD ACTIVITY FILE
+    // ----------------------------------------------
+
     let activities = [];
 
     if (fs.existsSync(ACTIVITY_FILE)) {
 
         try {
 
-            activities = JSON.parse(
+            const rawData =
                 fs.readFileSync(
                     ACTIVITY_FILE,
                     'utf8'
-                )
-            );
+                );
+
+            activities =
+                rawData.trim()
+                    ? JSON.parse(rawData)
+                    : [];
+
+            if (!Array.isArray(activities)) {
+                activities = [];
+            }
 
         } catch (error) {
 
@@ -5994,34 +6037,87 @@ if (interaction.commandName === 'inactive') {
                 error
             );
 
-            activities = [];
+            return interaction.reply({
+                content:
+                    '❌ I could not read the faction activity file.',
+                ephemeral: true
+            });
 
         }
 
     }
 
-    const now = Date.now();
+    // ----------------------------------------------
+    // CHECK ACTIVITY
+    // ----------------------------------------------
 
-    const INACTIVE_DAYS = 7;
+    const now =
+        Date.now();
+
+    const INACTIVE_DAYS =
+        7;
+
+    const DAY_MS =
+        1000 * 60 * 60 * 24;
 
     const inactiveFactions = [];
 
-    for (const gang of Object.values(GANGS)) {
+    for (const gang of factions) {
 
-        if (!gang.name) continue;
+        const factionActivities =
+            activities.filter(
+                activity =>
+                    activity &&
+                    activity.faction &&
+                    typeof activity.faction === 'string' &&
+                    activity.faction.toLowerCase() ===
+                    gang.name.toLowerCase() &&
+                    activity.timestamp
+            );
 
-        const factionActivities = activities.filter(
-            activity =>
-                activity.faction &&
-                activity.faction.toLowerCase() ===
-                gang.name.toLowerCase()
-        );
+        // ------------------------------------------
+        // NEVER HAD ACTIVITY
+        // ------------------------------------------
 
         if (factionActivities.length === 0) {
 
             inactiveFactions.push({
-                name: gang.name,
-                lastActivity: null
+                name:
+                    gang.name,
+
+                lastActivity:
+                    null
+            });
+
+            continue;
+
+        }
+
+        // ------------------------------------------
+        // FIND MOST RECENT ACTIVITY
+        // ------------------------------------------
+
+        const timestamps =
+            factionActivities
+                .map(
+                    activity =>
+                        new Date(
+                            activity.timestamp
+                        ).getTime()
+                )
+                .filter(
+                    timestamp =>
+                        Number.isFinite(timestamp)
+                );
+
+        if (timestamps.length === 0) {
+
+            inactiveFactions.push({
+                name:
+                    gang.name,
+
+                lastActivity:
+                    null
             });
 
             continue;
@@ -6029,28 +6125,37 @@ if (interaction.commandName === 'inactive') {
         }
 
         const latestActivity =
-            factionActivities
-                .map(activity =>
-                    new Date(activity.timestamp).getTime()
-                )
-                .sort((a, b) => b - a)[0];
+            Math.max(...timestamps);
 
         const daysInactive =
             Math.floor(
                 (now - latestActivity) /
-                (1000 * 60 * 60 * 24)
+                DAY_MS
             );
+
+        // ------------------------------------------
+        // 7+ DAYS INACTIVE
+        // ------------------------------------------
 
         if (daysInactive >= INACTIVE_DAYS) {
 
             inactiveFactions.push({
-                name: gang.name,
-                lastActivity: latestActivity
+
+                name:
+                    gang.name,
+
+                lastActivity:
+                    latestActivity
+
             });
 
         }
 
     }
+
+    // ----------------------------------------------
+    // BUILD DESCRIPTION
+    // ----------------------------------------------
 
     let description = '';
 
@@ -6061,37 +6166,49 @@ if (interaction.commandName === 'inactive') {
 
     } else {
 
-        description = inactiveFactions
-            .map((faction, index) => {
+        description =
+            inactiveFactions
+                .map((faction, index) => {
 
-                if (!faction.lastActivity) {
+                    if (!faction.lastActivity) {
+
+                        return (
+                            `**${index + 1}. ${faction.name}**\n` +
+                            `📋 No activity has ever been recorded.`
+                        );
+
+                    }
+
+                    const days =
+                        Math.floor(
+                            (now - faction.lastActivity) /
+                            DAY_MS
+                        );
+
+                    const lastActivityTimestamp =
+                        Math.floor(
+                            faction.lastActivity / 1000
+                        );
 
                     return (
                         `**${index + 1}. ${faction.name}**\n` +
-                        `📋 No activity has ever been recorded.`
+                        `⏰ Inactive for: **${days} days**\n` +
+                        `🕒 Last Activity: <t:${lastActivityTimestamp}:F> (<t:${lastActivityTimestamp}:R>)`
                     );
 
-                }
-
-                const days =
-                    Math.floor(
-                        (now - faction.lastActivity) /
-                        (1000 * 60 * 60 * 24)
-                    );
-
-                return (
-                    `**${index + 1}. ${faction.name}**\n` +
-                    `⏰ Inactive for: **${days} days**`
-                );
-
-            })
-            .join('\n\n');
+                })
+                .join('\n\n');
 
     }
 
+    // ----------------------------------------------
+    // EMBED
+    // ----------------------------------------------
+
     const inactiveEmbed = {
 
-        color: 0xFF8C00,
+        color:
+            0xFF8C00,
 
         title:
             '🏴 LYNWOOD FACTIONS • INACTIVE FACTIONS',
@@ -6110,7 +6227,9 @@ if (interaction.commandName === 'inactive') {
 
     return interaction.reply({
 
-        embeds: [inactiveEmbed],
+        embeds: [
+            inactiveEmbed
+        ],
 
         ephemeral: true
 
