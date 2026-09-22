@@ -398,6 +398,13 @@ const commands = [
             .setDescription('The name of the gang.')
             .setRequired(true)
             .setMaxLength(50)
+    )
+    .addStringOption(option =>
+        option
+            .setName('color')
+            .setDescription('Gang role color in HEX format. Example: #FF0000')
+            .setRequired(true)
+            .setMaxLength(7)
     ),
 
     new SlashCommandBuilder()
@@ -2210,9 +2217,12 @@ if (interaction.commandName === 'creategang') {
     // ----------------------------------------------
 
     const gangName =
-        interaction.options.getString('name').trim();
+    interaction.options.getString('name').trim();
 
-    if (!gangName) {
+    const gangColor =
+    interaction.options.getString('color').trim();
+
+if (!gangName) {
 
         return interaction.reply({
             content:
@@ -2221,6 +2231,30 @@ if (interaction.commandName === 'creategang') {
         });
 
     }
+
+    // ----------------------------------------------
+   // VALIDATE GANG COLOR
+   // ----------------------------------------------
+
+const normalizedGangColor =
+    gangColor.startsWith('#')
+        ? gangColor
+        : `#${gangColor}`;
+
+if (
+    !/^#[0-9A-Fa-f]{6}$/.test(
+        normalizedGangColor
+    )
+) {
+
+    return interaction.reply({
+        content:
+            '❌ Invalid color.\n\n' +
+            'Please use a valid HEX color such as `#FF0000` or `#5865F2`.',
+        ephemeral: true
+    });
+
+}
 
     // ----------------------------------------------
     // LOAD LATEST FACTION DATA
@@ -2296,12 +2330,19 @@ if (interaction.commandName === 'creategang') {
 
     try {
 
-        gangRole =
-            await interaction.guild.roles.create({
-                name: gangName,
-                reason:
-                    `Gang created by ${interaction.user.tag}`
-            });
+      gangRole =
+    await interaction.guild.roles.create({
+
+        name:
+            gangName,
+
+        color:
+            normalizedGangColor,
+
+        reason:
+            `Gang created by ${interaction.user.tag}`
+
+    });
 
         // ------------------------------------------
         // CREATE LEADER ROLE
@@ -2345,17 +2386,25 @@ if (interaction.commandName === 'creategang') {
 
     factions[factionKey] = {
 
-        name: gangName,
+    name:
+        gangName,
 
-        leaderRole: leaderRole.id,
+    leaderRole:
+        leaderRole.id,
 
-        gangRole: gangRole.id,
+    gangRole:
+        gangRole.id,
 
-        block: 'Not Assigned',
+    color:
+        normalizedGangColor,
 
-        tier: 'Not Assigned'
+    block:
+        'Not Assigned',
 
-    };
+    tier:
+        'Not Assigned'
+
+};
 
     // ----------------------------------------------
     // SAVE TO factions.json
@@ -3821,11 +3870,17 @@ if (interaction.commandName === 'removegang') {
 
     if (interaction.commandName === 'gangleader') {
 
-        const gangs = Object.values(GANGS).filter(
-            gang =>
-                gang.leaderRole &&
-                gang.gangRole
-        );
+       const latestFactions =
+    loadFactions();
+
+const gangs =
+    Object.values(latestFactions).filter(
+        gang =>
+            gang &&
+            gang.name &&
+            gang.leaderRole &&
+            gang.gangRole
+    );
 
         if (gangs.length === 0) {
 
