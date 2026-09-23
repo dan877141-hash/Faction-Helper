@@ -1252,12 +1252,11 @@ async function sendGangLog({
 
 }
 
-
 // ======================================================
 // BOT READY
 // ======================================================
 
-client.once('ready', () => {
+client.once('ready', async () => {
 
     console.log('======================================');
     console.log(`Bot Online: ${client.user.tag}`);
@@ -1266,48 +1265,73 @@ client.once('ready', () => {
     console.log('Gang Management System Ready');
     console.log('======================================');
 
+    // ----------------------------------------------
+    // LOAD ACTIVE PROBATION TIMERS
+    // ----------------------------------------------
+
+    try {
+
+        await loadActiveProbationTimers();
+
+        console.log(
+            '✅ Active probation timers loaded.'
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Failed to load probation timers:',
+            error
+        );
+
+    }
+
 });
 
 // ----------------------------------------------
 // LOAD ACTIVE PROBATION TIMERS
 // ----------------------------------------------
 
-const probationData =
-    loadProbation();
+async function loadActiveProbationTimers() {
 
-for (
-    const [userId, probation]
-    of Object.entries(probationData)
-) {
+    const probationData =
+        loadProbation();
 
-    if (
-        !probation ||
-        !probation.expiresAt
+    for (
+        const [userId, probation]
+        of Object.entries(probationData)
     ) {
 
-        continue;
+        if (
+            !probation ||
+            !probation.expiresAt
+        ) {
 
-    }
+            continue;
 
-    const expiresAt =
-        Number(probation.expiresAt);
+        }
 
-    if (
-        expiresAt <= Date.now()
-    ) {
+        const expiresAt =
+            Number(probation.expiresAt);
 
-        await expireProbation(
-            client,
-            userId
-        );
+        if (
+            expiresAt <= Date.now()
+        ) {
 
-    } else {
+            await expireProbation(
+                client,
+                userId
+            );
 
-        scheduleProbationExpiration(
-            client,
-            userId,
-            expiresAt
-        );
+        } else {
+
+            scheduleProbationExpiration(
+                client,
+                userId,
+                expiresAt
+            );
+
+        }
 
     }
 
