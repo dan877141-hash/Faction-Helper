@@ -3732,6 +3732,12 @@ if (interaction.commandName === 'removegang') {
     const HIGH_FACTION_STAFF_ROLE_ID =
         '1550018347804917760';
 
+    const FACTION_OWNER_ROLE_ID =
+        '1478512249936150539';
+
+    const FACTION_MEMBER_ROLE_ID =
+        '1545485022193123451';
+
     if (
         !interaction.member.roles.cache.has(
             HIGH_FACTION_STAFF_ROLE_ID
@@ -3746,6 +3752,14 @@ if (interaction.commandName === 'removegang') {
         });
 
     }
+
+    // ----------------------------------------------
+    // DEFER REPLY
+    // ----------------------------------------------
+
+    await interaction.deferReply({
+        ephemeral: true
+    });
 
     // ----------------------------------------------
     // GET GANG NAME
@@ -3778,10 +3792,9 @@ if (interaction.commandName === 'removegang') {
 
     if (!factionEntry) {
 
-        return interaction.reply({
+        return interaction.editReply({
             content:
-                `❌ I could not find **${gangName}** in the faction database.`,
-            ephemeral: true
+                `❌ I could not find **${gangName}** in the faction database.`
         });
 
     }
@@ -3792,7 +3805,7 @@ if (interaction.commandName === 'removegang') {
     ] = factionEntry;
 
     // ----------------------------------------------
-    // SAVE ROLE IDS BEFORE REMOVING DATABASE ENTRY
+    // SAVE ROLE IDS
     // ----------------------------------------------
 
     const gangRoleId =
@@ -3801,99 +3814,338 @@ if (interaction.commandName === 'removegang') {
     const leaderRoleId =
         gang.leaderRole;
 
+    // ----------------------------------------------
+    // GET ROLES BEFORE DELETING THEM
+    // ----------------------------------------------
+
+    const gangRole =
+        gangRoleId
+            ? interaction.guild.roles.cache.get(
+                gangRoleId
+            )
+            : null;
+
+    const leaderRole =
+        leaderRoleId
+            ? interaction.guild.roles.cache.get(
+                leaderRoleId
+            )
+            : null;
+
+    const factionOwnerRole =
+        interaction.guild.roles.cache.get(
+            FACTION_OWNER_ROLE_ID
+        );
+
+    const factionMemberRole =
+        interaction.guild.roles.cache.get(
+            FACTION_MEMBER_ROLE_ID
+        );
+
     // ==================================================
-    // DELETE GANG THREAD
+    // FIND CURRENT FACTION MEMBERS / OWNERS
     // ==================================================
 
-let gangThreadDeleted =
-    false;
+    const factionMembers = [];
 
-try {
+    const factionOwners = [];
 
-    if (
-        fs.existsSync(
-            GANG_THREADS_FILE
-        )
-    ) {
+    // ----------------------------------------------
+    // FIND MEMBERS WITH THE GANG ROLE
+    // ----------------------------------------------
 
-        const gangThreads =
-            JSON.parse(
-                fs.readFileSync(
-                    GANG_THREADS_FILE,
-                    'utf8'
-                )
-            );
+    if (gangRole) {
 
-        // ------------------------------------------
-        // FIND FORUM BY FACTION KEY
-        // ------------------------------------------
-
-        const gangThreadEntry =
-            Object.entries(gangThreads).find(
-                ([, forum]) =>
-                    forum &&
-                    forum.factionKey ===
-                    factionKey
-            );
-
-        if (gangThreadEntry) {
-
-            const [
-                forumId,
-                forumData
-            ] = gangThreadEntry;
-
-            // --------------------------------------
-            // DELETE ACTUAL DISCORD FORUM
-            // --------------------------------------
-
-            const forumChannel =
-                await interaction.guild.channels
-                    .fetch(
-                        forumData.forumChannelId
+        const membersWithGangRole =
+            interaction.guild.members.cache.filter(
+                member =>
+                    member.roles.cache.has(
+                        gangRoleId
                     )
-                    .catch(() => null);
+            );
 
-            if (forumChannel) {
+        for (
+            const member
+            of membersWithGangRole.values()
+        ) {
 
-                await forumChannel.delete(
-                    `Faction ${gangName} removed by ${interaction.user.tag}`
-                );
+            factionMembers.push(member);
 
-                gangThreadDeleted =
-                    true;
+            // ------------------------------------------
+            // CURRENT OWNER
+            // ------------------------------------------
+
+            if (
+                leaderRoleId &&
+                member.roles.cache.has(
+                    leaderRoleId
+                )
+            ) {
+
+                factionOwners.push(member);
 
             }
-
-            // --------------------------------------
-            // REMOVE FROM gangThreads.json
-            // --------------------------------------
-
-            delete gangThreads[
-                forumId
-            ];
-
-            fs.writeFileSync(
-                GANG_THREADS_FILE,
-                JSON.stringify(
-                    gangThreads,
-                    null,
-                    4
-                )
-            );
 
         }
 
     }
 
-} catch (error) {
+    // ==================================================
+    // CHECK BOT ROLE HIERARCHY BEFORE CHANGES
+    // ==================================================
 
-    console.error(
-        '⚠️ Could not remove gang Forum:',
-        error
-    );
+    const botMember =
+        interaction.guild.members.me;
 
-}
+    if (!botMember) {
+
+        return interaction.editReply({
+            content:
+                '❌ I could not verify my bot role hierarchy.'
+        });
+
+    }
+
+    const botHighestRole =
+        botMember.roles.highest;
+
+    if (
+        gangRole &&
+        gangRole.position >=
+        botHighestRole.position
+    ) {
+
+        return interaction.editReply({
+            content:
+                `❌ I cannot delete the **${gangName}** Gang role because my bot role is not high enough in the Discord role hierarchy.`
+        });
+
+    }
+
+    if (
+        leaderRole &&
+        leaderRole.position >=
+        botHighestRole.position
+    ) {
+
+        return interaction.editReply({
+            content:
+                `❌ I cannot delete the **${gangName} Leader** role because my bot role is not high enough in the Discord role hierarchy.`
+        });
+
+    }
+
+    if (
+        factionOwnerRole &&
+        factionOwners.some(
+            member =>
+                factionOwnerRole.position >=
+                botHighestRole.position
+        )
+    ) {
+
+        return interaction.editReply({
+            content:
+                '❌ I cannot remove the **Faction Owner** role because my bot role is not high enough in the Discord role hierarchy.'
+        });
+
+    }
+
+    // ==================================================
+    // REMOVE OWNERSHIP ROLES
+    // ==================================================
+
+    let factionOwnersRemoved = 0;
+
+    try {
+
+        for (
+            const owner
+            of factionOwners
+        ) {
+
+            // ------------------------------------------
+            // REMOVE FACTION OWNER
+            // ------------------------------------------
+
+            if (
+                factionOwnerRole &&
+                owner.roles.cache.has(
+                    FACTION_OWNER_ROLE_ID
+                )
+            ) {
+
+                await owner.roles.remove(
+                    factionOwnerRole,
+                    `Faction ${gangName} removed by ${interaction.user.tag}`
+                );
+
+                factionOwnersRemoved++;
+
+            }
+
+            // ------------------------------------------
+            // LEADER ROLE WILL BE DELETED BELOW
+            // ------------------------------------------
+            // No need to remove it individually because
+            // deleting the Discord role removes it from
+            // everyone automatically.
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not remove faction ownership roles:',
+            error
+        );
+
+        return interaction.editReply({
+            content:
+                `❌ I could not remove the ownership roles for **${gangName}**.\n\n` +
+                `Make sure my bot role is above the **Faction Owner** role.`
+        });
+
+    }
+
+    // ==================================================
+    // REMOVE FACTION MEMBER ROLE
+    // ==================================================
+
+    let factionMembersRemoved = 0;
+
+    try {
+
+        if (factionMemberRole) {
+
+            for (
+                const member
+                of factionMembers
+            ) {
+
+                if (
+                    member.roles.cache.has(
+                        FACTION_MEMBER_ROLE_ID
+                    )
+                ) {
+
+                    await member.roles.remove(
+                        factionMemberRole,
+                        `Faction ${gangName} deleted by ${interaction.user.tag}`
+                    );
+
+                    factionMembersRemoved++;
+
+                }
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '⚠️ Could not remove Faction Member roles:',
+            error
+        );
+
+        // Continue with gang deletion.
+        // The faction itself is still being removed.
+    }
+
+    // ==================================================
+    // DELETE GANG THREAD / FORUM
+    // ==================================================
+
+    let gangThreadDeleted =
+        false;
+
+    try {
+
+        if (
+            fs.existsSync(
+                GANG_THREADS_FILE
+            )
+        ) {
+
+            const gangThreads =
+                JSON.parse(
+                    fs.readFileSync(
+                        GANG_THREADS_FILE,
+                        'utf8'
+                    )
+                );
+
+            // ------------------------------------------
+            // FIND FORUM BY FACTION KEY
+            // ------------------------------------------
+
+            const gangThreadEntry =
+                Object.entries(gangThreads).find(
+                    ([, forum]) =>
+                        forum &&
+                        forum.factionKey ===
+                        factionKey
+                );
+
+            if (gangThreadEntry) {
+
+                const [
+                    forumId,
+                    forumData
+                ] = gangThreadEntry;
+
+                // --------------------------------------
+                // DELETE ACTUAL DISCORD FORUM
+                // --------------------------------------
+
+                const forumChannel =
+                    await interaction.guild.channels
+                        .fetch(
+                            forumData.forumChannelId
+                        )
+                        .catch(() => null);
+
+                if (forumChannel) {
+
+                    await forumChannel.delete(
+                        `Faction ${gangName} removed by ${interaction.user.tag}`
+                    );
+
+                    gangThreadDeleted =
+                        true;
+
+                }
+
+                // --------------------------------------
+                // REMOVE FROM gangThreads.json
+                // --------------------------------------
+
+                delete gangThreads[
+                    forumId
+                ];
+
+                fs.writeFileSync(
+                    GANG_THREADS_FILE,
+                    JSON.stringify(
+                        gangThreads,
+                        null,
+                        4
+                    )
+                );
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '⚠️ Could not remove gang Forum:',
+            error
+        );
+
+    }
 
     // ==================================================
     // DELETE GANG + LEADER ROLES
@@ -3911,23 +4163,14 @@ try {
         // DELETE GANG ROLE
         // ----------------------------------------------
 
-        if (gangRoleId) {
+        if (gangRole) {
 
-            const gangRole =
-                interaction.guild.roles.cache.get(
-                    gangRoleId
-                );
+            await gangRole.delete(
+                `Faction ${gangName} removed by ${interaction.user.tag}`
+            );
 
-            if (gangRole) {
-
-                await gangRole.delete(
-                    `Faction ${gangName} removed by ${interaction.user.tag}`
-                );
-
-                gangRoleDeleted =
-                    true;
-
-            }
+            gangRoleDeleted =
+                true;
 
         }
 
@@ -3935,23 +4178,14 @@ try {
         // DELETE LEADER ROLE
         // ----------------------------------------------
 
-        if (leaderRoleId) {
+        if (leaderRole) {
 
-            const leaderRole =
-                interaction.guild.roles.cache.get(
-                    leaderRoleId
-                );
+            await leaderRole.delete(
+                `Faction ${gangName} removed by ${interaction.user.tag}`
+            );
 
-            if (leaderRole) {
-
-                await leaderRole.delete(
-                    `Faction ${gangName} removed by ${interaction.user.tag}`
-                );
-
-                leaderRoleDeleted =
-                    true;
-
-            }
+            leaderRoleDeleted =
+                true;
 
         }
 
@@ -3962,15 +4196,12 @@ try {
             error
         );
 
-        return interaction.reply({
+        return interaction.editReply({
 
             content:
                 `❌ I could not completely remove **${gangName}**.\n\n` +
                 `Make sure the bot has **Manage Roles** permission and that its highest role is above the faction roles.\n\n` +
-                `The faction database has **NOT** been changed.`,
-
-            ephemeral:
-                true
+                `The faction database has **NOT** been changed.`
 
         });
 
@@ -3986,15 +4217,12 @@ try {
 
     if (!saveFactions(factions)) {
 
-        return interaction.reply({
+        return interaction.editReply({
 
             content:
                 `⚠️ The Discord roles were removed, but I could not save the faction database.\n\n` +
                 `Faction: **${gangName}**\n` +
-                `Database slot: \`${factionKey}\``,
-
-            ephemeral:
-                true
+                `Database slot: \`${factionKey}\``
 
         });
 
@@ -4107,11 +4335,12 @@ try {
 
                 embeds: [
                     {
+
                         title:
                             '🗑️ Faction Removed',
 
                         description:
-                            `**${gangName}** has been removed from the faction database.`,
+                            `**${gangName}** has been completely removed from the faction system.`,
 
                         color:
                             0xED4245,
@@ -4179,7 +4408,29 @@ try {
 
                             {
                                 name:
-                                    '🧵 Gang Thread',
+                                    '👑 Faction Owners',
+
+                                value:
+                                    `${factionOwnersRemoved} removed`,
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    '🛡️ Faction Members',
+
+                                value:
+                                    `${factionMembersRemoved} removed`,
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
+                                    '🧵 Gang Forum',
 
                                 value:
                                     gangThreadDeleted
@@ -4212,6 +4463,7 @@ try {
 
                         timestamp:
                             new Date().toISOString()
+
                     }
                 ]
 
@@ -4232,23 +4484,21 @@ try {
     // SUCCESS
     // ==================================================
 
-    return interaction.reply({
+    return interaction.editReply({
 
         content:
-            `✅ **${gangName}** has been removed successfully.\n\n` +
+            `✅ **${gangName}** has been completely removed.\n\n` +
             `🗑️ Faction database entry removed\n` +
-            `👥 Gang role deleted\n` +
-            `👑 Gang Leader role deleted\n` +
-            `✍️ Gang Forum thread deleted: ${gangThreadDeleted ? 'Yes' : 'No'}\n` +
-            `🏴 Flag identifier cleaned up: ${flagThreadDeleted ? 'Yes' : 'No'}`,
-
-        ephemeral:
-            true
+            `👥 Gang role deleted: ${gangRoleDeleted ? 'Yes' : 'No'}\n` +
+            `👑 Gang Leader role deleted: ${leaderRoleDeleted ? 'Yes' : 'No'}\n` +
+            `👑 Faction Owner removed: ${factionOwnersRemoved}\n` +
+            `🔐 Faction Member removed: ${factionMembersRemoved}\n` +
+            `✍️ Gang Forum deleted: ${gangThreadDeleted ? 'Yes' : 'No'}\n` +
+            `🏴 Flag identifier cleaned up: ${flagThreadDeleted ? 'Yes' : 'No'}`
 
     });
 
 }
-
     // ==================================================
 // /gangremove
 // ==================================================
