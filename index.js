@@ -3360,46 +3360,71 @@ if (interaction.commandName === 'removeflagthread') {
 
         }
 
-        // ----------------------------------------------
-        // VERIFY THIS FORUM BELONGS TO THEIR GANG
-        // ----------------------------------------------
+    // ----------------------------------------------
+    // VERIFY THIS FORUM BELONGS TO THEIR GANG
+    // ----------------------------------------------
 
-        const assignedForum =
-            Object.values(gangThreads).find(
-                forum =>
-                    forum &&
-                    forum.factionKey &&
-                    forum.factionKey ===
-                        Object.keys(GANGS).find(
-                            key =>
-                                GANGS[key] === leaderGang
-                        )
-            );
+// Find the actual faction database key
+// using the Gang + Leader role IDs.
+const leaderGangKey =
+    Object.keys(GANGS).find(
+        key =>
+            GANGS[key] &&
+            GANGS[key].gangRole === leaderGang.gangRole &&
+            GANGS[key].leaderRole === leaderGang.leaderRole
+    );
 
-        if (
-            !assignedForum ||
-            assignedForum.forumChannelId !==
-                parentForum.id
-        ) {
+if (!leaderGangKey) {
 
-            await sendGangLog({
-                guild: interaction.guild,
-                action: 'Unauthorized Attempt',
-                leader: interaction.member,
-                target: null,
-                gang: leaderGang.name,
-                success: false,
-                reason:
-                    'Gang leader attempted to use /gangadd outside their assigned faction Forum.'
-            });
+    await sendGangLog({
+        guild: interaction.guild,
+        action: 'Unauthorized Attempt',
+        leader: interaction.member,
+        target: null,
+        gang: leaderGang.name,
+        success: false,
+        reason:
+            'Could not determine the faction database key for the Gang Leader.'
+    });
 
-            return interaction.reply({
-                content:
-                     `❌ /gangadd can only be used inside **${leaderGang.name}'s assigned faction Forum**.`,
-                ephemeral: true
-            });
+    return interaction.reply({
+        content:
+            `❌ I could not determine the faction database entry for **${leaderGang.name}**.`,
+        ephemeral: true
+    });
+}
 
-        }
+// Find the Forum assigned to this faction
+const assignedForum =
+    Object.values(gangThreads).find(
+        forum =>
+            forum &&
+            forum.factionKey === leaderGangKey
+    );
+
+if (
+    !assignedForum ||
+    assignedForum.forumChannelId !== parentForum.id
+) {
+
+    await sendGangLog({
+        guild: interaction.guild,
+        action: 'Unauthorized Attempt',
+        leader: interaction.member,
+        target: null,
+        gang: leaderGang.name,
+        success: false,
+        reason:
+            'Gang leader attempted to use /gangadd outside their assigned faction Forum.'
+    });
+
+    return interaction.reply({
+        content:
+            `❌ /gangadd can only be used inside **${leaderGang.name}'s assigned faction Forum**.`,
+        ephemeral: true
+    });
+
+}
 
         const targetUser =
             interaction.options.getMember('user');
