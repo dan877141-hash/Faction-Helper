@@ -52,6 +52,9 @@ const GANG_THREADS_FILE =
 const FLAG_THREADS_FILE =
     path.join(DATA_DIR, 'flagThreads.json');
 
+const PROBATION_FILE =
+    path.join(DATA_DIR, 'probation.json');
+
 // ======================================================
 // INITIALIZE PERSISTENT DATA
 // ======================================================
@@ -356,6 +359,66 @@ function saveFactions(data) {
 
         console.error(
             '❌ Could not save factions.json:',
+            error
+        );
+
+        return false;
+
+    }
+
+}
+
+// ======================================================
+// PROBATION SYSTEM
+// ======================================================
+
+function loadProbation() {
+
+    if (!fs.existsSync(PROBATION_FILE)) {
+        return {};
+    }
+
+    try {
+
+        return JSON.parse(
+            fs.readFileSync(
+                PROBATION_FILE,
+                'utf8'
+            )
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not read probation.json:',
+            error
+        );
+
+        return {};
+
+    }
+
+}
+
+function saveProbation(data) {
+
+    try {
+
+        fs.writeFileSync(
+            PROBATION_FILE,
+            JSON.stringify(
+                data,
+                null,
+                2
+            )
+        );
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not save probation.json:',
             error
         );
 
@@ -740,7 +803,11 @@ new SlashCommandBuilder()
             .setDescription('The faction whose flag identifier should be removed.')
             .setRequired(true)
             .setMaxLength(50)
-    )
+    ),
+
+    new SlashCommandBuilder()
+    .setName('probationlist')
+    .setDescription('View all active probation roles.')
 
 ].map(command => command.toJSON());
 
@@ -3679,6 +3746,290 @@ if (interaction.commandName === 'removegang') {
 
     }
 
+// ==================================================
+// /probationlist
+// ==================================================
+
+if (interaction.commandName === 'probationlist') {
+
+    // ----------------------------------------------
+    // FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const FACTION_STAFF_ROLE_ID =
+        '1545272829891837973';
+
+    if (
+        !interaction.member.roles.cache.has(
+            FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/probationlist`.\n\n' +
+                'Only **Faction Staff** can view probation members.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // LOAD PROBATION DATA
+    // ----------------------------------------------
+
+    const probationData =
+        loadProbation();
+
+    const now =
+        Date.now();
+
+    // ----------------------------------------------
+    // REMOVE EXPIRED PROBATIONS
+    // ----------------------------------------------
+
+    const activeProbations = [];
+
+    for (
+        const [userId, probation]
+        of Object.entries(probationData)
+    ) {
+
+        if (
+            !probation ||
+            !probation.expiresAt
+        ) {
+            continue;
+        }
+
+        if (
+            Number(probation.expiresAt) <= now
+        ) {
+            continue;
+        }
+
+        activeProbations.push({
+            userId,
+            ...probation
+        });
+
+    }
+
+    // ----------------------------------------------
+    // SAVE CLEANED DATA
+    // ----------------------------------------------
+
+    const cleanedProbationData = {};
+
+    for (
+        const probation
+        of activeProbations
+    ) {
+
+        cleanedProbationData[
+            probation.userId
+        ] = {
+
+            roleId:
+                probation.roleId,
+
+            expiresAt:
+                probation.expiresAt
+
+        };
+
+    }
+
+    saveProbation(
+        cleanedProbationData
+    );
+
+    // ----------------------------------------------
+    // NO ACTIVE PROBATIONS
+    // ----------------------------------------------
+
+    if (
+        activeProbations.length === 0
+    ) {
+
+        return interaction.reply({
+
+            embeds: [
+
+                {
+                    color: 0xFF8C00,
+
+                    title:
+                        '🕐 LYNWOOD FACTIONS • PROBATION LIST',
+
+                    description:
+                        'There are currently **no active probation members**.',
+
+                    footer: {
+                        text:
+                            'Lynwood Factions • Probation List'
+                    },
+
+                    timestamp:
+                        new Date().toISOString()
+                }
+
+            ],
+
+            ephemeral: true
+
+        });
+
+    }
+
+    // ----------------------------------------------
+    // BUILD PROBATION LIST
+    // ----------------------------------------------
+
+    const probationList =
+        activeProbations.map(
+            (probation, index) => {
+
+                const member =
+                    interaction.guild.members.cache.get(
+                        probation.userId
+                    );
+
+                const role =
+                    interaction.guild.roles.cache.get(
+                        probation.roleId
+                    );
+
+                const expiresAt =
+                    Number(
+                        probation.expiresAt
+                    );
+
+                const remaining =
+                    Math.max(
+                        0,
+                        expiresAt - now
+                    );
+
+                const totalMinutes =
+                    Math.floor(
+                        remaining / 60000
+                    );
+
+                const days =
+                    Math.floor(
+                        totalMinutes / 1440
+                    );
+
+                const hours =
+                    Math.floor(
+                        (totalMinutes % 1440) / 60
+                    );
+
+                const minutes =
+                    totalMinutes % 60;
+
+                let timeRemaining = '';
+
+                if (days > 0) {
+
+                    timeRemaining +=
+                        `${days} day${days === 1 ? '' : 's'}`;
+
+                }
+
+                if (hours > 0) {
+
+                    if (timeRemaining) {
+                        timeRemaining += ', ';
+                    }
+
+                    timeRemaining +=
+                        `${hours} hour${hours === 1 ? '' : 's'}`;
+
+                }
+
+                if (
+                    minutes > 0 ||
+                    !timeRemaining
+                ) {
+
+                    if (timeRemaining) {
+                        timeRemaining += ', ';
+                    }
+
+                    timeRemaining +=
+                        `${minutes} minute${minutes === 1 ? '' : 's'}`;
+
+                }
+
+                return (
+
+                    `**${index + 1}.** ` +
+
+                    `👤 **Member:** ${
+                        member
+                            ? `${member}`
+                            : `<@${probation.userId}>`
+                    }\n` +
+
+                    `🏷️ **Role:** ${
+                        role
+                            ? `<@&${probation.roleId}>`
+                            : 'Role Deleted'
+                    }\n` +
+
+                    `⏳ **Time Remaining:** ${timeRemaining}\n` +
+
+                    `📅 **Expires:** <t:${
+                        Math.floor(
+                            expiresAt / 1000
+                        )
+                    }:F>`
+
+                );
+
+            }
+        ).join('\n\n');
+
+    // ----------------------------------------------
+    // SEND PROBATION LIST
+    // ----------------------------------------------
+
+    return interaction.reply({
+
+        embeds: [
+
+            {
+                color: 0xFF8C00,
+
+                title:
+                    '🕐 LYNWOOD FACTIONS • PROBATION LIST',
+
+                description:
+                    `There are **${activeProbations.length}** active probation member${
+                        activeProbations.length === 1
+                            ? ''
+                            : 's'
+                    }.\n\n` +
+                    probationList,
+
+                footer: {
+                    text:
+                        'Lynwood Factions • Probation List'
+                },
+
+                timestamp:
+                    new Date().toISOString()
+            }
+
+        ],
+
+        ephemeral: true
+
+    });
+
+}
 
     // ==================================================
     // /ganginfo
@@ -3780,96 +4131,142 @@ if (interaction.commandName === 'removegang') {
     }
 
     // ==================================================
-    // /ganglist
-    // ==================================================
+// /ganglist
+// ==================================================
 
-    if (interaction.commandName === 'ganglist') {
+if (interaction.commandName === 'ganglist') {
 
-    // Load the CURRENT faction database
-    const factions = loadFactions();
+    // ----------------------------------------------
+    // LOAD REGISTERED GANGS
+    // ----------------------------------------------
 
-    const gangs = Object.values(factions).filter(
+    const gangs = Object.values(loadFactions()).filter(
         gang =>
-            gang &&
-            gang.name &&
             gang.leaderRole &&
             gang.gangRole
     );
 
-        if (gangs.length === 0) {
+    if (gangs.length === 0) {
 
-            return interaction.reply({
-                content:
-                    '🏴 There are currently no registered factions.',
-                ephemeral: true
-            });
+        return interaction.reply({
+            content:
+                '🏴 There are currently no registered factions.',
+            ephemeral: true
+        });
 
-        }
+    }
 
-      const gangList = (
-    await Promise.all(
-        gangs.map(async (gang, index) => {
+    // ----------------------------------------------
+    // FETCH ALL SERVER MEMBERS
+    // ----------------------------------------------
+    // This is important after a Railway redeploy.
+    // It refreshes Discord.js' member cache so
+    // gangRole.members.size is accurate.
+
+    try {
+
+        await interaction.guild.members.fetch();
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not fetch guild members for /ganglist:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not load the server members. Please try again.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // BUILD GANG LIST
+    // ----------------------------------------------
+
+    const gangList = gangs
+        .map((gang, index) => {
 
             const leaderRole =
-                await interaction.guild.roles.fetch(
+                interaction.guild.roles.cache.get(
                     gang.leaderRole
-                ).catch(() => null);
+                );
 
             const gangRole =
-                await interaction.guild.roles.fetch(
+                interaction.guild.roles.cache.get(
                     gang.gangRole
-                ).catch(() => null);
+                );
+
+            const memberCount =
+                gangRole
+                    ? gangRole.members.size
+                    : 0;
 
             return (
                 `**${index + 1}. ${gang.name}**\n` +
+
                 `👑 Leader Role: ${
                     leaderRole
                         ? `<@&${gang.leaderRole}>`
                         : 'Not Found'
                 }\n` +
-                `👥 Members: ${
+
+                `👥 Member Role: ${
                     gangRole
-                        ? gangRole.members.size
-                        : 0
-                }`
+                        ? `<@&${gang.gangRole}>`
+                        : 'Not Found'
+                }\n` +
+
+                `👤 Members: **${memberCount}**`
             );
 
         })
-    )
-).join('\n\n');
+        .join('\n\n');
 
-        const gangListEmbed = {
+    // ----------------------------------------------
+    // EMBED
+    // ----------------------------------------------
 
-            color: 0xFF8C00,
+    const gangListEmbed = {
 
-            title:
-                '🏴 LYNWOOD FACTIONS • GANG LIST',
+        color: 0xFF8C00,
 
-            description:
-                'Here is the current list of registered factions.\n\n' +
-                gangList,
+        title:
+            '🏴 LYNWOOD FACTIONS • GANG LIST',
 
-            footer: {
-                text:
-                    `Lynwood Factions • ${gangs.length} Registered Faction${
-                        gangs.length === 1 ? '' : 's'
-                    }`
-            },
+        description:
+            'Here is the current list of registered factions.\n\n' +
+            gangList,
 
-            timestamp:
-                new Date().toISOString()
+        footer: {
+            text:
+                `Lynwood Factions • ${gangs.length} Registered Faction${
+                    gangs.length === 1 ? '' : 's'
+                }`
+        },
 
-        };
+        timestamp:
+            new Date().toISOString()
 
-        return interaction.reply({
+    };
 
-            embeds: [gangListEmbed],
+    // ----------------------------------------------
+    // SEND
+    // ----------------------------------------------
 
-            ephemeral: true
+    return interaction.reply({
 
-        });
+        embeds: [
+            gangListEmbed
+        ],
 
-    }
+        ephemeral: true
+
+    });
+
+}
 
 // ==================================================
 // /gangleader
