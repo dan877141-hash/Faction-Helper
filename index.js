@@ -2534,8 +2534,42 @@ if (interaction.commandName === 'creategang') {
     const gangColor =
     interaction.options.getString('color').trim();
 
-    const ownerUser =
-    interaction.options.getMember('user');
+   const ownerUserId =
+    interaction.options.getUser('user')?.id;
+
+if (!ownerUserId) {
+
+    return interaction.reply({
+        content:
+            '❌ You must select a user who will own the faction.',
+        ephemeral: true
+    });
+
+}
+
+let ownerUser;
+
+try {
+
+    ownerUser =
+        await interaction.guild.members.fetch(
+            ownerUserId
+        );
+
+} catch (error) {
+
+    console.error(
+        '❌ Could not fetch faction owner:',
+        error
+    );
+
+    return interaction.reply({
+        content:
+            '❌ I could not find the selected user in this server.',
+        ephemeral: true
+    });
+
+}
 
 // ----------------------------------------------
 // VERIFY OWNER USER
@@ -2742,9 +2776,26 @@ if (!factionOwnerRole) {
 const botMember =
     interaction.guild.members.me;
 
+if (!botMember) {
+
+    await gangRole.delete().catch(() => {});
+    await leaderRole.delete().catch(() => {});
+
+    return interaction.reply({
+        content:
+            '❌ I could not verify the bot role hierarchy.',
+        ephemeral: true
+    });
+
+}
+
 if (
+    gangRole.position >=
+        botMember.roles.highest.position ||
+    leaderRole.position >=
+        botMember.roles.highest.position ||
     factionOwnerRole.position >=
-    botMember.roles.highest.position
+        botMember.roles.highest.position
 ) {
 
     await gangRole.delete().catch(() => {});
@@ -2752,7 +2803,8 @@ if (
 
     return interaction.reply({
         content:
-            '❌ I cannot assign the **Faction Owner** role because my bot role is not high enough in the Discord role hierarchy.',
+            '❌ I cannot assign the faction roles because my bot role is not above the required roles in the Discord role hierarchy.\n\n' +
+            'Move the bot role above the Gang role, Leader role, and Faction Owner role.',
         ephemeral: true
     });
 
@@ -2803,6 +2855,59 @@ if (
 
     }
 
+        // ----------------------------------------------
+    // GIVE OWNER THE REQUIRED ROLES
+    // ----------------------------------------------
+
+    try {
+
+        // Give Gang Role
+        await ownerUser.roles.add(
+            gangRole,
+            `Faction owner assigned during creation by ${interaction.user.tag}`
+        );
+
+        // Give Leader Role
+        await ownerUser.roles.add(
+            leaderRole,
+            `Faction leader assigned during creation by ${interaction.user.tag}`
+        );
+
+        // Give Faction Owner Role
+        await ownerUser.roles.add(
+            factionOwnerRole,
+            `Faction Owner assigned during creation by ${interaction.user.tag}`
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not assign faction owner roles:',
+            error
+        );
+
+        // Remove anything that may have already been assigned
+        await ownerUser.roles.remove(
+            gangRole
+        ).catch(() => {});
+
+        await ownerUser.roles.remove(
+            leaderRole
+        ).catch(() => {});
+
+        await ownerUser.roles.remove(
+            factionOwnerRole
+        ).catch(() => {});
+
+        return interaction.reply({
+            content:
+                '❌ The faction was created, but I could not assign the required roles to the selected user.\n\n' +
+                'Make sure the bot has **Manage Roles** permission and is above the faction roles.',
+            ephemeral: true
+        });
+
+    }
+
     // ----------------------------------------------
     // UPDATE IN-MEMORY GANG DATA
     // ----------------------------------------------
@@ -2828,56 +2933,6 @@ if (
             `📍 **Block:** Not Assigned\n` +
             `🏆 **Tier:** Not Assigned\n\n` +
             `The gang has been added to \`factions.json\` and is now connected to the faction system.`,
-        ephemeral: true
-    });
-
-}
-
-// ----------------------------------------------
-// GIVE OWNER THE REQUIRED ROLES
-// ----------------------------------------------
-
-try {
-
-    await ownerUser.roles.add(
-        gangRole,
-        `Faction owner assigned during creation by ${interaction.user.tag}`
-    );
-
-    await ownerUser.roles.add(
-        leaderRole,
-        `Faction leader assigned during creation by ${interaction.user.tag}`
-    );
-
-    await ownerUser.roles.add(
-        factionOwnerRole,
-        `Faction Owner assigned during creation by ${interaction.user.tag}`
-    );
-
-} catch (error) {
-
-    console.error(
-        '❌ Could not assign faction owner roles:',
-        error
-    );
-
-    // Remove roles that may have already been assigned
-    await ownerUser.roles.remove(
-        gangRole
-    ).catch(() => {});
-
-    await ownerUser.roles.remove(
-        leaderRole
-    ).catch(() => {});
-
-    await ownerUser.roles.remove(
-        factionOwnerRole
-    ).catch(() => {});
-
-    return interaction.reply({
-        content:
-            '❌ The faction was created, but I could not assign the required roles to the selected user.\n\n' +
-            'Make sure the bot has **Manage Roles** permission and is above the faction roles.',
         ephemeral: true
     });
 
