@@ -2185,7 +2185,7 @@ if (interaction.commandName === 'blockthread') {
         '1545272829891837973';
 
     const BLOCK_FORUM_CHANNEL_ID =
-        'PUT_YOUR_BLOCK_FORUM_ID_HERE';
+        '1549677487955382302';
 
     // ----------------------------------------------
     // CHECK FACTION STAFF
