@@ -3395,7 +3395,7 @@ if (interaction.commandName === 'removeflagthread') {
 
             return interaction.reply({
                 content:
-                    `❌ `/gangadd` can only be used inside **${leaderGang.name}'s assigned faction Forum**.`,
+                     `❌ /gangadd can only be used inside **${leaderGang.name}'s assigned faction Forum**.`,
                 ephemeral: true
             });
 
