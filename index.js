@@ -428,6 +428,150 @@ function saveProbation(data) {
 
 }
 
+// ==================================================
+// PROBATION AUTO EXPIRATION
+// ==================================================
+
+const probationTimers = new Map();
+
+async function expireProbation(client, userId) {
+
+    const probationData =
+        loadProbation();
+
+    const probation =
+        probationData[userId];
+
+    // No probation record exists
+    if (!probation) {
+        probationTimers.delete(userId);
+        return;
+    }
+
+    const expiresAt =
+        Number(probation.expiresAt);
+
+    // Not expired yet
+    if (expiresAt > Date.now()) {
+
+        scheduleProbationExpiration(
+            client,
+            userId,
+            expiresAt
+        );
+
+        return;
+    }
+
+    // ----------------------------------------------
+    // REMOVE PROBATION ROLE
+    // ----------------------------------------------
+
+    for (
+        const guild
+        of client.guilds.cache.values()
+    ) {
+
+        try {
+
+            const member =
+                await guild.members
+                    .fetch(userId)
+                    .catch(() => null);
+
+            if (
+                member &&
+                member.roles.cache.has(
+                    probation.roleId
+                )
+            ) {
+
+                await member.roles.remove(
+                    probation.roleId,
+                    'Probation period expired'
+                );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                `❌ Failed to remove probation role from ${userId}:`,
+                error
+            );
+
+        }
+
+    }
+
+    // ----------------------------------------------
+    // REMOVE FROM PROBATION DATA
+    // ----------------------------------------------
+
+    delete probationData[userId];
+
+    saveProbation(
+        probationData
+    );
+
+    probationTimers.delete(
+        userId
+    );
+
+    console.log(
+        `✅ Probation expired for user ${userId}.`
+    );
+
+}
+
+
+// ==================================================
+// SCHEDULE PROBATION EXPIRATION
+// ==================================================
+
+function scheduleProbationExpiration(
+    client,
+    userId,
+    expiresAt
+) {
+
+    // Clear an existing timer
+    if (
+        probationTimers.has(userId)
+    ) {
+
+        clearTimeout(
+            probationTimers.get(userId)
+        );
+
+    }
+
+    const delay =
+        Math.max(
+            0,
+            Number(expiresAt) - Date.now()
+        );
+
+    const timer =
+        setTimeout(
+            () => {
+
+                expireProbation(
+                    client,
+                    userId
+                );
+
+            },
+            delay
+        );
+
+    probationTimers.set(
+        userId,
+        timer
+    );
+
+}
+
 const GANGS = loadFactions();
 
 
@@ -468,6 +612,20 @@ const commands = [
             .setDescription('Gang role color in HEX format. Example: #FF0000')
             .setRequired(true)
             .setMaxLength(7)
+    )
+
+    .addUserOption(option =>
+
+        option
+
+            .setName('user')
+
+            .setDescription(
+                'The user who will become the faction owner.'
+            )
+
+            .setRequired(true)
+
     ),
 
     new SlashCommandBuilder()
@@ -807,7 +965,17 @@ new SlashCommandBuilder()
 
     new SlashCommandBuilder()
     .setName('probationlist')
-    .setDescription('View all active probation roles.')
+    .setDescription('View all active probation roles.'),
+
+    new SlashCommandBuilder()
+    .setName('probationadd')
+    .setDescription('Place a member on a 2-day probation.')
+    .addUserOption(option =>
+        option
+            .setName('user')
+            .setDescription('The member to place on probation.')
+            .setRequired(true)
+    )
 
 ].map(command => command.toJSON());
 
@@ -1099,6 +1267,55 @@ client.once('ready', () => {
     console.log('======================================');
 
 });
+
+// ----------------------------------------------
+// LOAD ACTIVE PROBATION TIMERS
+// ----------------------------------------------
+
+const probationData =
+    loadProbation();
+
+for (
+    const [userId, probation]
+    of Object.entries(probationData)
+) {
+
+    if (
+        !probation ||
+        !probation.expiresAt
+    ) {
+
+        continue;
+
+    }
+
+    const expiresAt =
+        Number(probation.expiresAt);
+
+    if (
+        expiresAt <= Date.now()
+    ) {
+
+        await expireProbation(
+            client,
+            userId
+        );
+
+    } else {
+
+        scheduleProbationExpiration(
+            client,
+            userId,
+            expiresAt
+        );
+
+    }
+
+}
+
+console.log(
+    `🕐 Loaded ${Object.keys(loadProbation()).length} probation record(s).`
+);
 
 // ======================================================
 // SELECTIVE COMMAND LOGGER
@@ -1666,7 +1883,7 @@ if (interaction.commandName === 'create-gangthread') {
             await interaction.guild.channels.create({
 
                 name:
-                    `⚔️・${gangName}`,
+                    `${gangName}`,
 
                 type:
                     ChannelType.GuildForum,
@@ -1704,15 +1921,19 @@ if (interaction.commandName === 'create-gangthread') {
                     },
 
                     // FACTION MEMBERS CAN SEE IT
-                    {
+                      {
                         id:
                             gangRole.id,
 
                         allow: [
                             'ViewChannel',
-                            'SendMessages',
                             'ReadMessageHistory',
                             'SendMessagesInThreads'
+                        ],
+
+                        deny: [
+                            'CreatePublicThreads',
+                            'CreatePrivateThreads'
                         ]
                     },
 
@@ -2289,6 +2510,23 @@ if (interaction.commandName === 'creategang') {
     const gangColor =
     interaction.options.getString('color').trim();
 
+    const ownerUser =
+    interaction.options.getMember('user');
+
+// ----------------------------------------------
+// VERIFY OWNER USER
+// ----------------------------------------------
+
+if (!ownerUser) {
+
+    return interaction.reply({
+        content:
+            '❌ I could not find the selected user in the server.',
+        ephemeral: true
+    });
+
+}
+
 if (!gangName) {
 
         return interaction.reply({
@@ -2448,6 +2686,55 @@ if (
     }
 
     // ----------------------------------------------
+// GET FACTION OWNER ROLE
+// ----------------------------------------------
+
+const FACTION_OWNER_ROLE_ID =
+    '1478512249936150539';
+
+const factionOwnerRole =
+    interaction.guild.roles.cache.get(
+        FACTION_OWNER_ROLE_ID
+    );
+
+if (!factionOwnerRole) {
+
+    await gangRole.delete().catch(() => {});
+    await leaderRole.delete().catch(() => {});
+
+    return interaction.reply({
+        content:
+            '❌ The **Faction Owner** role could not be found.\n\n' +
+            `Check the role ID: \`${FACTION_OWNER_ROLE_ID}\``,
+        ephemeral: true
+    });
+
+}
+
+// ----------------------------------------------
+// CHECK BOT ROLE HIERARCHY
+// ----------------------------------------------
+
+const botMember =
+    interaction.guild.members.me;
+
+if (
+    factionOwnerRole.position >=
+    botMember.roles.highest.position
+) {
+
+    await gangRole.delete().catch(() => {});
+    await leaderRole.delete().catch(() => {});
+
+    return interaction.reply({
+        content:
+            '❌ I cannot assign the **Faction Owner** role because my bot role is not high enough in the Discord role hierarchy.',
+        ephemeral: true
+    });
+
+}
+
+    // ----------------------------------------------
     // CREATE FACTION DATABASE ENTRY
     // ----------------------------------------------
 
@@ -2513,9 +2800,60 @@ if (
             `🗂️ **Database Slot:** \`${factionKey}\`\n\n` +
             `👥 **Gang Role:** ${gangRole}\n` +
             `👑 **Leader Role:** ${leaderRole}\n` +
+            `🔐 **Faction Owner:** ${ownerUser}\n` +
             `📍 **Block:** Not Assigned\n` +
             `🏆 **Tier:** Not Assigned\n\n` +
             `The gang has been added to \`factions.json\` and is now connected to the faction system.`,
+        ephemeral: true
+    });
+
+}
+
+// ----------------------------------------------
+// GIVE OWNER THE REQUIRED ROLES
+// ----------------------------------------------
+
+try {
+
+    await ownerUser.roles.add(
+        gangRole,
+        `Faction owner assigned during creation by ${interaction.user.tag}`
+    );
+
+    await ownerUser.roles.add(
+        leaderRole,
+        `Faction leader assigned during creation by ${interaction.user.tag}`
+    );
+
+    await ownerUser.roles.add(
+        factionOwnerRole,
+        `Faction Owner assigned during creation by ${interaction.user.tag}`
+    );
+
+} catch (error) {
+
+    console.error(
+        '❌ Could not assign faction owner roles:',
+        error
+    );
+
+    // Remove roles that may have already been assigned
+    await ownerUser.roles.remove(
+        gangRole
+    ).catch(() => {});
+
+    await ownerUser.roles.remove(
+        leaderRole
+    ).catch(() => {});
+
+    await ownerUser.roles.remove(
+        factionOwnerRole
+    ).catch(() => {});
+
+    return interaction.reply({
+        content:
+            '❌ The faction was created, but I could not assign the required roles to the selected user.\n\n' +
+            'Make sure the bot has **Manage Roles** permission and is above the faction roles.',
         ephemeral: true
     });
 
@@ -2839,6 +3177,150 @@ if (interaction.commandName === 'removeflagthread') {
 
     if (interaction.commandName === 'gangadd') {
 
+            // ----------------------------------------------
+        // ONLY ALLOW /gangadd INSIDE THE FACTION FORUM
+        // ----------------------------------------------
+
+        const channel = interaction.channel;
+
+        // /gangadd must be used inside a Forum post/thread
+        if (!channel || !channel.isThread()) {
+
+            return interaction.reply({
+                content:
+                    '❌ `/gangadd` can only be used inside your faction Forum post.',
+                ephemeral: true
+            });
+
+        }
+
+        // ----------------------------------------------
+        // GET THE PARENT FORUM
+        // ----------------------------------------------
+
+        const parentForum =
+            interaction.guild.channels.cache.get(
+                channel.parentId
+            );
+
+        if (
+            !parentForum ||
+            parentForum.type !== ChannelType.GuildForum
+        ) {
+
+            return interaction.reply({
+                content:
+                    '❌ `/gangadd` can only be used inside your assigned faction Forum.',
+                ephemeral: true
+            });
+
+        }
+
+        // ----------------------------------------------
+        // FIND LEADER'S GANG
+        // ----------------------------------------------
+
+        const leaderGang =
+            getLeaderGang(interaction.member);
+
+        if (!leaderGang) {
+
+            await sendGangLog({
+                guild: interaction.guild,
+                action: 'Unauthorized Attempt',
+                leader: interaction.member,
+                target: null,
+                gang: 'None',
+                success: false,
+                reason:
+                    'User attempted to use /gangadd without a registered Gang Leader role.'
+            });
+
+            return interaction.reply({
+                content:
+                    '❌ **You are not authorized to use this command.**\n\n' +
+                    'You must have a registered **Gang Leader** role.',
+                ephemeral: true
+            });
+
+        }
+
+        // ----------------------------------------------
+        // LOAD GANG THREAD DATABASE
+        // ----------------------------------------------
+
+        let gangThreads = {};
+
+        try {
+
+            if (fs.existsSync(GANG_THREADS_FILE)) {
+
+                gangThreads =
+                    JSON.parse(
+                        fs.readFileSync(
+                            GANG_THREADS_FILE,
+                            'utf8'
+                        )
+                    );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                '❌ Could not load gangThreads.json:',
+                error
+            );
+
+            return interaction.reply({
+                content:
+                    '❌ I could not verify your faction Forum.',
+                ephemeral: true
+            });
+
+        }
+
+        // ----------------------------------------------
+        // VERIFY THIS FORUM BELONGS TO THEIR GANG
+        // ----------------------------------------------
+
+        const assignedForum =
+            Object.values(gangThreads).find(
+                forum =>
+                    forum &&
+                    forum.factionKey &&
+                    forum.factionKey ===
+                        Object.keys(GANGS).find(
+                            key =>
+                                GANGS[key] === leaderGang
+                        )
+            );
+
+        if (
+            !assignedForum ||
+            assignedForum.forumChannelId !==
+                parentForum.id
+        ) {
+
+            await sendGangLog({
+                guild: interaction.guild,
+                action: 'Unauthorized Attempt',
+                leader: interaction.member,
+                target: null,
+                gang: leaderGang.name,
+                success: false,
+                reason:
+                    'Gang leader attempted to use /gangadd outside their assigned faction Forum.'
+            });
+
+            return interaction.reply({
+                content:
+                    `❌ `/gangadd` can only be used inside **${leaderGang.name}'s assigned faction Forum**.`,
+                ephemeral: true
+            });
+
+        }
+
         const targetUser =
             interaction.options.getMember('user');
 
@@ -2855,13 +3337,6 @@ if (interaction.commandName === 'removeflagthread') {
             });
 
         }
-
-        // ----------------------------------------------
-        // FIND LEADER'S GANG
-        // ----------------------------------------------
-
-        const leaderGang =
-            getLeaderGang(interaction.member);
 
         // ----------------------------------------------
         // NOT A GANG LEADER
@@ -2993,44 +3468,87 @@ if (interaction.commandName === 'removeflagthread') {
         }
 
         // ----------------------------------------------
+        // FIND FACTION MEMBER ROLE
+        // ----------------------------------------------
+
+const FACTION_MEMBER_ROLE_ID =
+    '1545485022193123451';
+
+const factionMemberRole =
+    interaction.guild.roles.cache.get(
+        FACTION_MEMBER_ROLE_ID
+    );
+
+if (!factionMemberRole) {
+
+    await sendGangLog({
+        guild: interaction.guild,
+        action: 'Failed Add',
+        leader: interaction.member,
+        target: targetUser,
+        gang: leaderGang.name,
+        success: false,
+        reason:
+            'Faction Member role could not be found.'
+    });
+
+    return interaction.reply({
+        content:
+            '❌ The **Faction Member** role could not be found.\n\n' +
+            `Check the role ID: \`${FACTION_MEMBER_ROLE_ID}\``,
+        ephemeral: true
+    });
+
+}
+
+        // ----------------------------------------------
         // CHECK BOT ROLE HIERARCHY
         // ----------------------------------------------
 
-        if (
-            gangRole.position >=
-            interaction.guild.members.me.roles.highest.position
-        ) {
+       const botHighestRole =
+    interaction.guild.members.me.roles.highest;
 
-            await sendGangLog({
-                guild: interaction.guild,
-                action: 'Failed Add',
-                leader: interaction.member,
-                target: targetUser,
-                gang: leaderGang.name,
-                success: false,
-                reason:
-                    'Bot role is not above the gang role.'
-            });
+if (
+    gangRole.position >= botHighestRole.position ||
+    factionMemberRole.position >= botHighestRole.position
+) {
 
-            return interaction.reply({
-                content:
-                    '❌ I cannot assign this role because my bot role is not high enough in the Discord role hierarchy.',
-                ephemeral: true
-            });
+    await sendGangLog({
+        guild: interaction.guild,
+        action: 'Failed Add',
+        leader: interaction.member,
+        target: targetUser,
+        gang: leaderGang.name,
+        success: false,
+        reason:
+            'Bot role is not above the Gang role or Faction Member role.'
+    });
 
-        }
+    return interaction.reply({
+        content:
+            '❌ I cannot assign the required roles because my bot role is not high enough in the Discord role hierarchy.',
+        ephemeral: true
+    });
 
-        // ----------------------------------------------
-        // ADD GANG ROLE
-        // ----------------------------------------------
+}
 
-        try {
+    // ----------------------------------------------
+    // ADD GANG + FACTION MEMBER ROLES
+    // ----------------------------------------------
 
-            await targetUser.roles.add(
-                gangRole,
-                `Added to ${leaderGang.name} by ${interaction.user.tag}`
-            );
+    try {
 
+    // Add normal faction/gang role
+    await targetUser.roles.add(
+        gangRole,
+        `Added to ${leaderGang.name} by ${interaction.user.tag}`
+    );
+
+    // Add global Faction Member role
+    await targetUser.roles.add(
+        factionMemberRole,
+        `Faction Member assigned by ${interaction.user.tag}`
+    );
             // ------------------------------------------
             // LOG SUCCESS
             // ------------------------------------------
@@ -3047,44 +3565,52 @@ if (interaction.commandName === 'removeflagthread') {
             // SUCCESS MESSAGE
             // ------------------------------------------
 
-            await interaction.reply({
-
-                content:
-                    `✅ ${targetUser} has been added to **${leaderGang.name}**.\n\n` +
-                    `👑 **Leader:** ${interaction.user}\n` +
-                    `👤 **Member:** ${targetUser}\n` +
-                    `🏴 **Gang:** ${leaderGang.name}`,
-
-                ephemeral: true
-
-            });
+             await interaction.reply({
+        content:
+            `✅ ${targetUser} has been added to **${leaderGang.name}**.\n\n` +
+            `👑 **Leader:** ${interaction.user}\n` +
+            `👤 **Member:** ${targetUser}\n` +
+            `🏴 **Gang:** ${leaderGang.name}\n` +
+            `🛡️ **Faction Member:** ${factionMemberRole}`,
+        ephemeral: false
+    });
 
             console.log(
                 `[GANG ADD] ${interaction.user.tag} added ${targetUser.user.tag} to ${leaderGang.name}`
             );
 
-        } catch (error) {
+} catch (error) {
 
-            console.error(error);
+    console.error(
+        '❌ Gang add role assignment error:',
+        error
+    );
 
-            await sendGangLog({
-                guild: interaction.guild,
-                action: 'Failed Add',
-                leader: interaction.member,
-                target: targetUser,
-                gang: leaderGang.name,
-                success: false,
-                reason:
-                    'Discord rejected the role assignment.'
-            });
+    // Remove gang role if it was successfully added
+    // but the Faction Member role failed.
+    await targetUser.roles.remove(
+        gangRole
+    ).catch(() => {});
 
-            await interaction.reply({
-                content:
-                    '❌ I could not give that role. Make sure the bot has **Manage Roles** permission and its role is above the gang role.',
-                ephemeral: true
-            });
+    await sendGangLog({
+        guild: interaction.guild,
+        action: 'Failed Add',
+        leader: interaction.member,
+        target: targetUser,
+        gang: leaderGang.name,
+        success: false,
+        reason:
+            'Discord rejected one or more role assignments.'
+    });
 
-        }
+    return interaction.reply({
+        content:
+            '❌ I could not give the required faction roles.\n\n' +
+            'Make sure the bot has **Manage Roles** permission and its role is above both the Gang role and **Faction Member** role.',
+        ephemeral: true
+    });
+
+        }  
 
     }
 
@@ -3747,6 +4273,215 @@ if (interaction.commandName === 'removegang') {
     }
 
 // ==================================================
+// /probationadd
+// ==================================================
+
+if (interaction.commandName === 'probationadd') {
+
+    // ----------------------------------------------
+    // FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const FACTION_STAFF_ROLE_ID =
+        '1545272829891837973';
+
+    if (
+        !interaction.member.roles.cache.has(
+            FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/probationadd`.\n\n' +
+                'Only **Faction Staff** can place members on probation.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET TARGET MEMBER
+    // ----------------------------------------------
+
+    const targetMember =
+        interaction.options.getMember('user');
+
+    if (!targetMember) {
+
+        return interaction.reply({
+            content:
+                '❌ I could not find that member in the server.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // PROBATION ROLE
+    // ----------------------------------------------
+
+    const PROBATION_ROLE_ID =
+        '1478512307809292318';
+
+    const probationRole =
+        interaction.guild.roles.cache.get(
+            PROBATION_ROLE_ID
+        );
+
+    if (!probationRole) {
+
+        return interaction.reply({
+            content:
+                '❌ The probation role could not be found.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // CHECK BOT ROLE HIERARCHY
+    // ----------------------------------------------
+
+    const botMember =
+        interaction.guild.members.me;
+
+    if (
+        !botMember ||
+        probationRole.position >=
+            botMember.roles.highest.position
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ I cannot manage the probation role because it is above my highest role.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // LOAD PROBATION DATA
+    // ----------------------------------------------
+
+    const probationData =
+        loadProbation();
+
+    // ----------------------------------------------
+    // 2 DAY EXPIRATION
+    // ----------------------------------------------
+
+    const now =
+        Date.now();
+
+    const TWO_DAYS =
+        2 * 24 * 60 * 60 * 1000;
+
+    const expiresAt =
+        now + TWO_DAYS;
+
+    // ----------------------------------------------
+    // GIVE PROBATION ROLE
+    // ----------------------------------------------
+
+    try {
+
+        await targetMember.roles.add(
+            probationRole,
+            `2-day probation added by ${interaction.user.tag}`
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Failed to add probation role:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not give the member the probation role. Check my **Manage Roles** permission and role hierarchy.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // SAVE PROBATION DATA
+    // ----------------------------------------------
+
+    probationData[targetMember.id] = {
+
+        roleId:
+            PROBATION_ROLE_ID,
+
+        expiresAt:
+            expiresAt
+
+    };
+
+    const saved =
+        saveProbation(
+            probationData
+        );
+
+    if (!saved) {
+
+        // Remove the role if the data could not
+        // be saved so the probation does not
+        // become unsynchronized.
+
+        await targetMember.roles.remove(
+            probationRole,
+            'Probation data failed to save'
+        ).catch(() => {});
+
+        return interaction.reply({
+            content:
+                '❌ The probation role was added, but I could not save the probation data. The role has been removed.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
+
+    return interaction.reply({
+
+        embeds: [
+
+            {
+                color: 0xFF8C00,
+
+                title:
+                    '🕐 LYNWOOD FACTIONS • PROBATION ADDED',
+
+                description:
+                    `👤 **Member:** ${targetMember}\n` +
+                    `🏷️ **Role:** ${probationRole}\n` +
+                    `⏳ **Duration:** 2 days\n` +
+                    `📅 **Expires:** <t:${Math.floor(expiresAt / 1000)}:F>`,
+
+                footer: {
+                    text:
+                        'Lynwood Factions • Probation'
+                },
+
+                timestamp:
+                    new Date().toISOString()
+            }
+
+        ],
+
+        ephemeral: false
+
+    });
+
+}
+
+// ==================================================
 // /probationlist
 // ==================================================
 
@@ -4130,7 +4865,7 @@ if (interaction.commandName === 'probationlist') {
 
     }
 
-    // ==================================================
+// ==================================================
 // /ganglist
 // ==================================================
 
@@ -4262,7 +4997,7 @@ if (interaction.commandName === 'ganglist') {
             gangListEmbed
         ],
 
-        ephemeral: true
+        ephemeral: false
 
     });
 
