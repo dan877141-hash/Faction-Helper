@@ -1007,6 +1007,48 @@ new SlashCommandBuilder()
             .setRequired(true)
     ),
 
+    new SlashCommandBuilder()
+    .setName('delmsg')
+    .setDescription('Delete a number of recent messages')
+    .addIntegerOption(option =>
+        option
+            .setName('amount')
+            .setDescription('Number of messages to delete')
+            .setRequired(true)
+            .setMinValue(1)
+            .setMaxValue(100)
+    ),
+
+new SlashCommandBuilder()
+    .setName('delete-all')
+    .setDescription('Delete all recent messages in this channel'),
+
+new SlashCommandBuilder()
+    .setName('bulkrole')
+    .setDescription('Give a role to multiple members')
+    .addRoleOption(option =>
+        option
+            .setName('role')
+            .setDescription('Role to give')
+            .setRequired(true)
+    )
+    .addStringOption(option =>
+        option
+            .setName('members')
+            .setDescription('Mention multiple members, separated by spaces')
+            .setRequired(true)
+    ),
+
+    new SlashCommandBuilder()
+    .setName('roleall')
+    .setDescription('Give a role to every member in the server')
+    .addRoleOption(option =>
+        option
+            .setName('role')
+            .setDescription('The role to give to everyone')
+            .setRequired(true)
+    )
+
 ].map(command => command.toJSON());
 
 // ======================================================
@@ -9384,7 +9426,7 @@ if (interaction.commandName === 'giveleaderrole') {
         });
 
         console.log(
-            `✅ ${interaction.user.tag} gave ${leaderRole.name} to ${targetUser.tag} for ${factionKey}.`
+            `✔️ ${interaction.user.tag} gave ${leaderRole.name} to ${targetUser.tag} for ${factionKey}.`
         );
 
     } catch (error) {
@@ -9407,6 +9449,714 @@ if (interaction.commandName === 'giveleaderrole') {
             });
 
         }
+
+    }
+
+}
+
+// ==================================================
+// /delmsg
+// ==================================================
+
+if (interaction.commandName === 'delmsg') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID =
+        '1550018347804917760';
+
+    if (
+        !interaction.member.roles.cache.has(
+            HIGH_FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/delmsg`.\n\n' +
+                'Only **High Faction Staff** can delete messages.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET AMOUNT
+    // ----------------------------------------------
+
+    const amount =
+        interaction.options.getInteger('amount');
+
+    // ----------------------------------------------
+    // DEFER
+    // ----------------------------------------------
+
+    await interaction.deferReply({
+        ephemeral: true
+    });
+
+    try {
+
+        // ------------------------------------------
+        // FETCH MESSAGES
+        // ------------------------------------------
+
+        const messages =
+            await interaction.channel.messages.fetch({
+                limit: amount
+            });
+
+        if (!messages.size) {
+
+            return interaction.editReply({
+                content:
+                    '❌ There are no messages to delete.'
+            });
+
+        }
+
+        // ------------------------------------------
+        // DELETE MESSAGES
+        // ------------------------------------------
+
+        const deleted =
+            await interaction.channel.bulkDelete(
+                messages,
+                true
+            );
+
+        // ------------------------------------------
+        // SUCCESS
+        // ------------------------------------------
+
+        return interaction.editReply({
+
+            content:
+                `🗑️ **Messages Deleted**\n\n` +
+                `💬 **Channel:** ${interaction.channel}\n` +
+                `🗑️ **Deleted:** ${deleted.size} message(s)\n` +
+                `🔒 **Deleted By:** ${interaction.user}`
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            '❌ /delmsg error:',
+            error
+        );
+
+        return interaction.editReply({
+
+            content:
+                '❌ I could not delete the messages.\n\n' +
+                'Make sure the bot has **Manage Messages** permission.'
+
+        });
+
+    }
+
+}
+
+
+// ==================================================
+// /delete-all
+// ==================================================
+
+if (interaction.commandName === 'delete-all') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID =
+        '1550018347804917760';
+
+    if (
+        !interaction.member.roles.cache.has(
+            HIGH_FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/delete-all`.\n\n' +
+                'Only **High Faction Staff** can delete messages.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // DEFER
+    // ----------------------------------------------
+
+    await interaction.deferReply({
+        ephemeral: true
+    });
+
+    try {
+
+        let totalDeleted = 0;
+
+        // ------------------------------------------
+        // KEEP FETCHING UNTIL EMPTY
+        // ------------------------------------------
+
+        while (true) {
+
+            const messages =
+                await interaction.channel.messages.fetch({
+                    limit: 100
+                });
+
+            if (!messages.size) {
+                break;
+            }
+
+            const deleted =
+                await interaction.channel.bulkDelete(
+                    messages,
+                    true
+                );
+
+            totalDeleted +=
+                deleted.size;
+
+            // --------------------------------------
+            // SAFETY BREAK
+            // --------------------------------------
+
+            if (
+                deleted.size === 0 ||
+                messages.size < 100
+            ) {
+                break;
+            }
+
+        }
+
+        // ------------------------------------------
+        // SUCCESS
+        // ------------------------------------------
+
+        return interaction.editReply({
+
+            content:
+                `🗑️ **All Recent Messages Deleted**\n\n` +
+                `💬 **Channel:** ${interaction.channel}\n` +
+                `🗑️ **Deleted:** ${totalDeleted} message(s)\n` +
+                `🔒 **Deleted By:** ${interaction.user}`
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            '❌ /delete-all error:',
+            error
+        );
+
+        return interaction.editReply({
+
+            content:
+                '❌ I could not delete all messages.\n\n' +
+                'Make sure the bot has **Manage Messages** permission.'
+
+        });
+
+    }
+
+}
+
+
+// ==================================================
+// /bulkrole
+// ==================================================
+
+if (interaction.commandName === 'bulkrole') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID =
+        '1550018347804917760';
+
+    if (
+        !interaction.member.roles.cache.has(
+            HIGH_FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/bulkrole`.\n\n' +
+                'Only **High Faction Staff** can bulk assign roles.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const role =
+        interaction.options.getRole('role');
+
+    const membersInput =
+        interaction.options.getString('members');
+
+    // ----------------------------------------------
+    // CHECK ROLE
+    // ----------------------------------------------
+
+    if (!role) {
+
+        return interaction.reply({
+            content:
+                '❌ I could not find that role.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // BOT ROLE HIERARCHY
+    // ----------------------------------------------
+
+    const botMember =
+        interaction.guild.members.me;
+
+    if (!botMember) {
+
+        return interaction.reply({
+            content:
+                '❌ I could not verify the bot role hierarchy.',
+            ephemeral: true
+        });
+
+    }
+
+    if (
+        role.position >=
+        botMember.roles.highest.position
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ I cannot assign that role because my bot role is not high enough in the Discord role hierarchy.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // EXTRACT MEMBER IDS
+    // ----------------------------------------------
+
+    const memberIds =
+        membersInput.match(
+            /<@!?(\d+)>/g
+        );
+
+    if (
+        !memberIds ||
+        memberIds.length === 0
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You must mention at least one member.\n\n' +
+                '**Example:**\n' +
+                '`/bulkrole role:@Faction Member members:@User1 @User2 @User3`',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // DEFER
+    // ----------------------------------------------
+
+    await interaction.deferReply({
+        ephemeral: true
+    });
+
+    let added = 0;
+    let alreadyHad = 0;
+    let failed = 0;
+
+    const failedMembers = [];
+
+    // ----------------------------------------------
+    // ADD ROLE TO EACH MEMBER
+    // ----------------------------------------------
+
+    for (
+        const mention
+        of memberIds
+    ) {
+
+        const match =
+            mention.match(
+                /<@!?(\d+)>/
+            );
+
+        if (!match) {
+            continue;
+        }
+
+        const memberId =
+            match[1];
+
+        try {
+
+            const member =
+                await interaction.guild.members
+                    .fetch(memberId)
+                    .catch(() => null);
+
+            if (!member) {
+
+                failed++;
+
+                failedMembers.push(
+                    memberId
+                );
+
+                continue;
+
+            }
+
+            if (
+                member.roles.cache.has(
+                    role.id
+                )
+            ) {
+
+                alreadyHad++;
+
+                continue;
+
+            }
+
+            await member.roles.add(
+                role,
+                `Bulk role assignment by ${interaction.user.tag}`
+            );
+
+            added++;
+
+        } catch (error) {
+
+            console.error(
+                `❌ Could not give role to ${memberId}:`,
+                error
+            );
+
+            failed++;
+
+            failedMembers.push(
+                memberId
+            );
+
+        }
+
+    }
+
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
+
+    return interaction.editReply({
+
+        content:
+            `✔️ **Bulk Role Assignment Complete**\n\n` +
+            `🔓 **Role:** ${role}\n` +
+            `✅ **Role Added:** ${added}\n` +
+            `🔒 **Already Had Role:** ${alreadyHad}\n` +
+            `❌ **Failed:** ${failed}\n\n` +
+            `⚙️ **Changed By:** ${interaction.user}`
+
+    });
+
+}
+
+// ==================================================
+// /roleall
+// ==================================================
+
+if (interaction.commandName === 'roleall') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID =
+        '1550018347804917760';
+
+    if (
+        !interaction.member.roles.cache.has(
+            HIGH_FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/roleall`.\n\n' +
+                'Only **High Faction Staff** can give a role to everyone.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET ROLE
+    // ----------------------------------------------
+
+    const role =
+        interaction.options.getRole('role');
+
+    if (!role) {
+
+        return interaction.reply({
+            content:
+                '❌ I could not find that role.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET BOT
+    // ----------------------------------------------
+
+    const botMember =
+        interaction.guild.members.me;
+
+    if (!botMember) {
+
+        return interaction.reply({
+            content:
+                '❌ I could not verify the bot role hierarchy.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // ROLE HIERARCHY
+    // ----------------------------------------------
+
+    if (
+        role.position >=
+        botMember.roles.highest.position
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ I cannot assign that role because my bot role is not high enough in the Discord role hierarchy.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // DEFER
+    // ----------------------------------------------
+
+    await interaction.deferReply({
+        ephemeral: true
+    });
+
+    try {
+
+        // ------------------------------------------
+        // FETCH ALL MEMBERS
+        // ------------------------------------------
+
+        const members =
+            await interaction.guild.members.fetch();
+
+        // ------------------------------------------
+        // ONLY MEMBERS WHO NEED ROLE
+        // ------------------------------------------
+
+        const membersToProcess =
+            [...members.values()].filter(
+                member =>
+                    member.id !==
+                        interaction.client.user.id &&
+                    !member.roles.cache.has(
+                        role.id
+                    )
+            );
+
+        const total =
+            membersToProcess.length;
+
+        // ------------------------------------------
+        // NOTHING TO DO
+        // ------------------------------------------
+
+        if (total === 0) {
+
+            return interaction.editReply({
+
+                content:
+                    `✅ **Everyone Already Has The Role**\n\n` +
+                    `🎭 **Role:** ${role}\n` +
+                    `👥 **Members:** ${members.size}`
+
+            });
+
+        }
+
+        // ------------------------------------------
+        // START MESSAGE
+        // ------------------------------------------
+
+        await interaction.editReply({
+
+            content:
+                `🔄 **Changing roles for ${total} members.**\n\n` +
+                `🎭 **Role:** ${role}\n` +
+                `⏳ This may take a few minutes depending on the server size.\n\n` +
+                `Please be patient...`
+
+        });
+
+        // ------------------------------------------
+        // COUNTERS
+        // ------------------------------------------
+
+        let applied = 0;
+        let failed = 0;
+
+        const failedMembers = [];
+
+        // ------------------------------------------
+        // PROCESS MEMBERS
+        // ------------------------------------------
+
+        for (
+            let i = 0;
+            i < membersToProcess.length;
+            i++
+        ) {
+
+            const member =
+                membersToProcess[i];
+
+            try {
+
+                await member.roles.add(
+                    role,
+                    `Role assigned to all members by ${interaction.user.tag}`
+                );
+
+                applied++;
+
+            } catch (error) {
+
+                console.error(
+                    `❌ Could not give role to ${member.user.tag}:`,
+                    error
+                );
+
+                failed++;
+
+                failedMembers.push(
+                    member.user.tag
+                );
+
+            }
+
+            // --------------------------------------
+            // UPDATE PROGRESS EVERY 10 MEMBERS
+            // --------------------------------------
+
+            const processed =
+                i + 1;
+
+            if (
+                processed % 10 === 0 ||
+                processed === total
+            ) {
+
+                await interaction.editReply({
+
+                    content:
+                        `🔄 **Changing roles for ${total} members.**\n\n` +
+                        `🎭 **Role:** ${role}\n\n` +
+                        `📊 **Progress:** ${processed}/${total}\n` +
+                        `✔️ **Applied:** ${applied}\n` +
+                        `❌ **Failed:** ${failed}\n\n` +
+                        `⏱️ Please be patient...`
+
+                });
+
+            }
+
+            // --------------------------------------
+            // SMALL DELAY
+            // --------------------------------------
+            // Helps prevent Discord rate limits.
+
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        500
+                    )
+            );
+
+        }
+
+        // ------------------------------------------
+        // FINAL RESULT
+        // ------------------------------------------
+
+        let failureText = '';
+
+        if (failed > 0) {
+
+            failureText =
+                `\n\n❌ **Failed:** ${failed}`;
+
+        }
+
+        return interaction.editReply({
+
+            content:
+                `✔️ **Role Assignment Complete**\n\n` +
+                `🎭 **Role:** ${role}\n\n` +
+                `👥 **Members Processed:** ${total}\n` +
+                `🔐 **Applied:** ${applied}` +
+                failureText +
+                `\n\n` +
+                `✍️ **Changed By:** ${interaction.user}`
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            '❌ /roleall error:',
+            error
+        );
+
+        return interaction.editReply({
+
+            content:
+                '❌ I could not complete the role assignment.\n\n' +
+                'Make sure the bot has **Manage Roles** permission and its highest role is above the role you selected.'
+
+        });
 
     }
 
