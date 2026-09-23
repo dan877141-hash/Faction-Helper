@@ -2712,11 +2712,12 @@ if (
         // ------------------------------------------
 
         leaderRole =
-            await interaction.guild.roles.create({
-                name: `${gangName} Leader`,
-                reason:
-                    `Gang leader role created by ${interaction.user.tag}`
-            });
+         await interaction.guild.roles.create({
+        name: `${gangName} Leader`,
+        color: normalizedGangColor,
+        reason:
+            `Gang leader role created by ${interaction.user.tag}`
+    });
 
     } catch (error) {
 
@@ -5189,215 +5190,272 @@ if (interaction.commandName === 'gangleader') {
 }
 
     // ==================================================
-    // /gangtransfer
-    // ==================================================
+// /gangtransfer
+// ==================================================
 
-    if (interaction.commandName === 'gangtransfer') {
+if (interaction.commandName === 'gangtransfer') {
 
-        const targetUser =
-            interaction.options.getMember('user');
+    const targetUser =
+        interaction.options.getMember('user');
 
-        // ----------------------------------------------
-        // TARGET NOT FOUND
-        // ----------------------------------------------
+    const FACTION_OWNER_ROLE_ID =
+        '1478512249936150539';
 
-        if (!targetUser) {
+    // ----------------------------------------------
+    // CHECK TARGET
+    // ----------------------------------------------
 
-            return interaction.reply({
-                content:
-                    '❌ I could not find that member in the server.',
-                ephemeral: true
-            });
-
-        }
-
-        // ----------------------------------------------
-        // FIND CURRENT LEADER'S GANG
-        // ----------------------------------------------
-
-        const leaderGang =
-            getLeaderGang(interaction.member);
-
-        // ----------------------------------------------
-        // NOT A GANG LEADER
-        // ----------------------------------------------
-
-        if (!leaderGang) {
-
-            await sendGangLog({
-                guild: interaction.guild,
-                action: 'Unauthorized Attempt',
-                leader: interaction.member,
-                target: targetUser,
-                gang: 'None',
-                success: false,
-                reason:
-                    'User attempted to use /gangtransfer without a registered Gang Leader role.'
-            });
-
-            return interaction.reply({
-                content:
-                    '❌ You are not authorized to transfer faction leadership.\n\n' +
-                    'You must be a registered **Gang Leader**.',
-                ephemeral: true
-            });
-
-        }
-
-        // ----------------------------------------------
-        // DON'T ALLOW SELF
-        // ----------------------------------------------
-
-        if (targetUser.id === interaction.user.id) {
-
-            return interaction.reply({
-                content:
-                    '❌ You cannot transfer leadership to yourself.',
-                ephemeral: true
-            });
-
-        }
-
-        // ----------------------------------------------
-        // CHECK TARGET IS IN THE GANG
-        // ----------------------------------------------
-
-        if (
-            !targetUser.roles.cache.has(
-                leaderGang.gangRole
-            )
-        ) {
-
-            return interaction.reply({
-                content:
-                    `❌ ${targetUser} is not currently a member of **${leaderGang.name}**.\n\n` +
-                    'The new leader must already be a member of the faction.',
-                ephemeral: true
-            });
-
-        }
-
-        // ----------------------------------------------
-        // FIND LEADER ROLE
-        // ----------------------------------------------
-
-        const leaderRole =
-            interaction.guild.roles.cache.get(
-                leaderGang.leaderRole
-            );
-
-        if (!leaderRole) {
-
-            return interaction.reply({
-                content:
-                    `❌ The **${leaderGang.name} Leader** role could not be found.\n\n` +
-                    'Check the Leader Role ID in `index.js`.',
-                ephemeral: true
-            });
-
-        }
-
-        // ----------------------------------------------
-        // CHECK BOT ROLE HIERARCHY
-        // ----------------------------------------------
-
-        const botMember =
-            interaction.guild.members.me;
-
-        if (
-            leaderRole.position >=
-            botMember.roles.highest.position
-        ) {
-
-            return interaction.reply({
-                content:
-                    '❌ I cannot transfer the Leader role because my bot role is not high enough in the Discord role hierarchy.',
-                ephemeral: true
-            });
-
-        }
-
-        // ----------------------------------------------
-        // TRANSFER LEADERSHIP
-        // ----------------------------------------------
-
-        try {
-
-            // Remove Leader role from current leader
-            await interaction.member.roles.remove(
-                leaderRole,
-                `Gang leadership transferred to ${targetUser.user.tag}`
-            );
-
-            // Give Leader role to new leader
-            await targetUser.roles.add(
-                leaderRole,
-                `Gang leadership transferred by ${interaction.user.tag}`
-            );
-
-            // ------------------------------------------
-            // LOG SUCCESS
-            // ------------------------------------------
-
-            await sendGangLog({
-                guild: interaction.guild,
-                action: 'Leadership Transferred',
-                leader: interaction.member,
-                target: targetUser,
-                gang: leaderGang.name
-            });
-
-            // ------------------------------------------
-            // SUCCESS MESSAGE
-            // ------------------------------------------
-
-            return interaction.reply({
-
-                content:
-                    `✔️ **Gang Leadership Transferred**\n\n` +
-                    `🏴 **Faction:** ${leaderGang.name}\n` +
-                    `👑 **Previous Leader:** ${interaction.user}\n` +
-                    `🔐 **New Leader:** ${targetUser}\n\n` +
-                    `${targetUser} is now the registered leader of **${leaderGang.name}**.`,
-
-                ephemeral: true
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                '❌ Gang transfer error:',
-                error
-            );
-
-            // ------------------------------------------
-            // LOG FAILURE
-            // ------------------------------------------
-
-            await sendGangLog({
-                guild: interaction.guild,
-                action: 'Failed Transfer',
-                leader: interaction.member,
-                target: targetUser,
-                gang: leaderGang.name,
-                success: false,
-                reason:
-                    'Discord rejected the Leader role transfer.'
-            });
-
-            return interaction.reply({
-
-                content:
-                    '❌ I could not complete the leadership transfer. Make sure I have **Manage Roles** permission and my bot role is above the Leader role.',
-
-                ephemeral: true
-
-            });
-
-        }
-
+    if (!targetUser) {
+        return interaction.reply({
+            content:
+                '❌ I could not find that member in the server.',
+            ephemeral: true
+        });
     }
+
+    // ----------------------------------------------
+    // FIND CURRENT LEADER'S GANG
+    // ----------------------------------------------
+
+    const leaderGang =
+        getLeaderGang(interaction.member);
+
+    if (!leaderGang) {
+
+        await sendGangLog({
+            guild: interaction.guild,
+            action: 'Unauthorized Attempt',
+            leader: interaction.member,
+            target: targetUser,
+            gang: 'None',
+            success: false,
+            reason:
+                'User attempted to use /gangtransfer without a registered Gang Leader role.'
+        });
+
+        return interaction.reply({
+            content:
+                '❌ You are not authorized to transfer faction leadership.\n\n' +
+                'You must be a registered **Gang Leader**.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // CANNOT TRANSFER TO YOURSELF
+    // ----------------------------------------------
+
+    if (targetUser.id === interaction.user.id) {
+        return interaction.reply({
+            content:
+                '❌ You cannot transfer leadership to yourself.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // TARGET MUST ALREADY BE IN THE GANG
+    // ----------------------------------------------
+
+    if (
+        !targetUser.roles.cache.has(
+            leaderGang.gangRole
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                `❌ ${targetUser} is not currently a member of **${leaderGang.name}**.\n\n` +
+                'The new leader must already be a member of the faction.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // GET GANG ROLE
+    // ----------------------------------------------
+
+    const gangRole =
+        interaction.guild.roles.cache.get(
+            leaderGang.gangRole
+        );
+
+    if (!gangRole) {
+        return interaction.reply({
+            content:
+                `❌ The **${leaderGang.name}** Gang role could not be found.`,
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // GET LEADER ROLE
+    // ----------------------------------------------
+
+    const leaderRole =
+        interaction.guild.roles.cache.get(
+            leaderGang.leaderRole
+        );
+
+    if (!leaderRole) {
+        return interaction.reply({
+            content:
+                `❌ The **${leaderGang.name} Leader** role could not be found.`,
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // GET FACTION OWNER ROLE
+    // ----------------------------------------------
+
+    const factionOwnerRole =
+        interaction.guild.roles.cache.get(
+            FACTION_OWNER_ROLE_ID
+        );
+
+    if (!factionOwnerRole) {
+        return interaction.reply({
+            content:
+                '❌ The **Faction Owner** role could not be found.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // BOT ROLE HIERARCHY
+    // ----------------------------------------------
+
+    const botMember =
+        interaction.guild.members.me;
+
+    if (!botMember) {
+        return interaction.reply({
+            content:
+                '❌ I could not verify the bot role hierarchy.',
+            ephemeral: true
+        });
+    }
+
+    if (
+        gangRole.position >=
+            botMember.roles.highest.position ||
+        leaderRole.position >=
+            botMember.roles.highest.position ||
+        factionOwnerRole.position >=
+            botMember.roles.highest.position
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ I cannot complete the transfer because my bot role is not high enough in the Discord role hierarchy.\n\n' +
+                'Make sure my bot role is above the **Gang**, **Leader**, and **Faction Owner** roles.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // TRANSFER OWNERSHIP
+    // ----------------------------------------------
+
+    try {
+
+        // ==========================================
+        // REMOVE ALL FACTION OWNER ROLES
+        // FROM PREVIOUS OWNER
+        // ==========================================
+
+        await interaction.member.roles.remove(
+            gangRole,
+            `Faction ownership transferred to ${targetUser.user.tag}`
+        );
+
+        await interaction.member.roles.remove(
+            leaderRole,
+            `Faction leadership transferred to ${targetUser.user.tag}`
+        );
+
+        await interaction.member.roles.remove(
+            factionOwnerRole,
+            `Faction ownership transferred to ${targetUser.user.tag}`
+        );
+
+        // ==========================================
+        // GIVE ALL REQUIRED OWNER ROLES
+        // TO NEW OWNER
+        // ==========================================
+
+        await targetUser.roles.add(
+            gangRole,
+            `Faction membership transferred by ${interaction.user.tag}`
+        );
+
+        await targetUser.roles.add(
+            leaderRole,
+            `Faction leadership transferred by ${interaction.user.tag}`
+        );
+
+        await targetUser.roles.add(
+            factionOwnerRole,
+            `Faction ownership transferred by ${interaction.user.tag}`
+        );
+
+        // ------------------------------------------
+        // LOG SUCCESS
+        // ------------------------------------------
+
+        await sendGangLog({
+            guild: interaction.guild,
+            action: 'Leadership Transferred',
+            leader: interaction.member,
+            target: targetUser,
+            gang: leaderGang.name,
+            success: true,
+            reason:
+                'Gang, Leader, and Faction Owner roles were transferred to the new owner.'
+        });
+
+        // ------------------------------------------
+        // SUCCESS MESSAGE
+        // ------------------------------------------
+
+        return interaction.reply({
+            content:
+                `🔒 **Gang Ownership Transferred**\n\n` +
+                `⚔️ **Faction:** ${leaderGang.name}\n` +
+                `👤 **Previous Owner:** ${interaction.user}\n` +
+                `👑 **New Owner:** ${targetUser}\n\n` +
+                `❌ Previous owner lost the **Gang**, **Leader**, and **Faction Owner** roles.\n` +
+                `✅ New owner received the **Gang**, **Leader**, and **Faction Owner** roles.`,
+            ephemeral: true
+        });
+
+    } catch (error) {
+
+        console.error(
+            '❌ Gang transfer error:',
+            error
+        );
+
+        await sendGangLog({
+            guild: interaction.guild,
+            action: 'Failed Transfer',
+            leader: interaction.member,
+            target: targetUser,
+            gang: leaderGang.name,
+            success: false,
+            reason:
+                'Discord rejected one or more faction role changes.'
+        });
+
+        return interaction.reply({
+            content:
+                '❌ I could not complete the ownership transfer.\n\n' +
+                'Make sure I have **Manage Roles** permission and my bot role is above all three faction roles.',
+            ephemeral: true
+        });
+    }
+}
 
 // ==================================================
 // /gangblock
