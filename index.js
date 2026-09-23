@@ -273,6 +273,7 @@ const GANG_FORUM_CATEGORY_ID = process.env.GANG_FORUM_CATEGORY_ID;
 const FLAG_FORUM_CHANNEL_ID =
     process.env.FLAG_FORUM_CHANNEL_ID;
 
+const BLOCK_FORUM_CHANNEL_ID = '1549677487955382302';
 
 // ======================================================
 // GANG CONFIGURATION
@@ -982,7 +983,29 @@ new SlashCommandBuilder()
             .setName('user')
             .setDescription('The member to place on probation.')
             .setRequired(true)
+    ),
+
+    new SlashCommandBuilder()
+    .setName('blockthread')
+    .setDescription('Create a faction Block thread')
+    .addStringOption(option =>
+        option
+            .setName('gangname')
+            .setDescription('The faction this Block thread belongs to')
+            .setRequired(true)
     )
+    .addStringOption(option =>
+        option
+            .setName('threadname')
+            .setDescription('Name of the Block thread')
+            .setRequired(true)
+    )
+    .addAttachmentOption(option =>
+        option
+            .setName('image')
+            .setDescription('Upload the image for this Block thread')
+            .setRequired(true)
+    ),
 
 ].map(command => command.toJSON());
 
@@ -2141,6 +2164,455 @@ if (interaction.commandName === 'create-gangthread') {
 
             ephemeral:
                 true
+
+        });
+
+    }
+
+}
+
+// ==================================================
+// /blockthread
+// ==================================================
+
+if (interaction.commandName === 'blockthread') {
+
+    // ----------------------------------------------
+    // CONFIGURATION
+    // ----------------------------------------------
+
+    const FACTION_STAFF_ROLE_ID =
+        '1545272829891837973';
+
+    const BLOCK_FORUM_CHANNEL_ID =
+        'PUT_YOUR_BLOCK_FORUM_ID_HERE';
+
+    // ----------------------------------------------
+    // CHECK FACTION STAFF
+    // ----------------------------------------------
+
+    if (
+        !interaction.member.roles.cache.has(
+            FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/blockthread`.\n\n' +
+                'Only **Faction Staff** can create Block threads.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // GET OPTIONS
+    // ----------------------------------------------
+
+    const gangName =
+        interaction.options
+            .getString('gangname')
+            .trim();
+
+    const threadName =
+        interaction.options
+            .getString('threadname')
+            .trim();
+
+    const blockImage =
+        interaction.options.getAttachment(
+            'image'
+        );
+
+    // ----------------------------------------------
+    // VALIDATE THREAD NAME
+    // ----------------------------------------------
+
+    if (!threadName) {
+
+        return interaction.reply({
+            content:
+                '❌ You must provide a thread name.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // VALIDATE IMAGE
+    // ----------------------------------------------
+
+    if (!blockImage) {
+
+        return interaction.reply({
+            content:
+                '❌ You must upload a block image.',
+            ephemeral: true
+        });
+
+    }
+
+    const validImageTypes = [
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'image/webp',
+        'image/gif'
+    ];
+
+    if (
+        blockImage.contentType &&
+        !validImageTypes.includes(
+            blockImage.contentType
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ The uploaded file must be an image.\n\n' +
+                'Supported formats: PNG, JPG, JPEG, WEBP, or GIF.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // FIND FACTION
+    // ----------------------------------------------
+
+    const factionEntry =
+        Object.entries(GANGS).find(
+            ([, gang]) =>
+                gang &&
+                gang.name &&
+                gang.name.toLowerCase() ===
+                gangName.toLowerCase()
+        );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find **${gangName}** in the faction database.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [
+        factionKey,
+        gang
+    ] = factionEntry;
+
+    // ----------------------------------------------
+    // GET BLOCK FORUM
+    // ----------------------------------------------
+
+    const blockForum =
+        await interaction.guild.channels
+            .fetch(
+                BLOCK_FORUM_CHANNEL_ID
+            )
+            .catch(() => null);
+
+    if (!blockForum) {
+
+        return interaction.reply({
+            content:
+                '❌ The Block Forum could not be found.\n\n' +
+                'Check your `BLOCK_FORUM_CHANNEL_ID`.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // MAKE SURE IT IS A FORUM
+    // ----------------------------------------------
+
+    if (
+        blockForum.type !== ChannelType.GuildForum
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ The configured Block Forum channel is not a Forum channel.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // LOAD THREAD DATABASE
+    // ----------------------------------------------
+
+    let gangThreads = {};
+
+    try {
+
+        if (
+            fs.existsSync(
+                GANG_THREADS_FILE
+            )
+        ) {
+
+            gangThreads =
+                JSON.parse(
+                    fs.readFileSync(
+                        GANG_THREADS_FILE,
+                        'utf8'
+                    )
+                );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not load gangThreads.json:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not load the faction thread database.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // FIND FACTION DATABASE ENTRY
+    // ----------------------------------------------
+
+    let factionThreadEntry =
+        Object.entries(gangThreads).find(
+            ([, data]) =>
+                data &&
+                data.factionKey === factionKey
+        );
+
+    // ----------------------------------------------
+    // CHECK EXISTING BLOCK THREAD
+    // ----------------------------------------------
+
+    if (factionThreadEntry) {
+
+        const [
+            ,
+            factionThreadData
+        ] = factionThreadEntry;
+
+        if (
+            factionThreadData.blockThreadId
+        ) {
+
+            const existingBlockThread =
+                await blockForum.threads
+                    .fetch(
+                        factionThreadData.blockThreadId
+                    )
+                    .catch(() => null);
+
+            if (existingBlockThread) {
+
+                return interaction.reply({
+                    content:
+                        `❌ **${gang.name}** already has a Block thread:\n${existingBlockThread}\n\n` +
+                        `Delete the existing Block thread first if you want to create a new one.`,
+                    ephemeral: true
+                });
+
+            }
+
+            // ------------------------------------------
+            // OLD THREAD NO LONGER EXISTS
+            // ------------------------------------------
+
+            delete factionThreadData.blockThreadId;
+            delete factionThreadData.blockThreadName;
+            delete factionThreadData.blockForumChannelId;
+            delete factionThreadData.blockThreadCreatedBy;
+            delete factionThreadData.blockThreadCreatedAt;
+
+        }
+
+    }
+
+    // ----------------------------------------------
+    // CREATE BLOCK THREAD
+    // ----------------------------------------------
+
+    try {
+
+        const blockThread =
+            await blockForum.threads.create({
+
+                name:
+                    threadName,
+
+                message: {
+
+                    content:
+                        `🏘️ **${gang.name}**\n\n` +
+                        `📍 **Block:** ${gang.block || 'Not Assigned'}\n\n` +
+                        `🖼️ **Block Image:**\n${blockImage.url}\n\n` +
+                        `🔒 **Faction Staff Only**\n` +
+                        `Faction members may view this thread but cannot reply or create posts.`,
+
+                    files: [
+                        {
+                            attachment:
+                                blockImage.url,
+
+                            name:
+                                'block-image'
+                        }
+                    ]
+
+                },
+
+                reason:
+                    `Block thread created for ${gang.name} by ${interaction.user.tag}`
+
+            });
+
+        // ----------------------------------------------
+        // SAVE BLOCK THREAD
+        // ----------------------------------------------
+
+        if (factionThreadEntry) {
+
+            const [
+                forumId
+            ] = factionThreadEntry;
+
+            gangThreads[
+                forumId
+            ].blockThreadId =
+                blockThread.id;
+
+            gangThreads[
+                forumId
+            ].blockThreadName =
+                blockThread.name;
+
+            gangThreads[
+                forumId
+            ].blockForumChannelId =
+                BLOCK_FORUM_CHANNEL_ID;
+
+            gangThreads[
+                forumId
+            ].block =
+                gang.block || null;
+
+            gangThreads[
+                forumId
+            ].blockImage =
+                blockImage.url;
+
+            gangThreads[
+                forumId
+            ].blockThreadCreatedBy =
+                interaction.user.id;
+
+            gangThreads[
+                forumId
+            ].blockThreadCreatedAt =
+                new Date().toISOString();
+
+        } else {
+
+            // ------------------------------------------
+            // CREATE STANDALONE DATABASE ENTRY
+            // ------------------------------------------
+
+            gangThreads[
+                `block_${factionKey}`
+            ] = {
+
+                factionKey:
+                    factionKey,
+
+                name:
+                    gang.name,
+
+                gangRoleId:
+                    gang.gangRole,
+
+                block:
+                    gang.block || null,
+
+                blockImage:
+                    blockImage.url,
+
+                blockForumChannelId:
+                    BLOCK_FORUM_CHANNEL_ID,
+
+                blockThreadId:
+                    blockThread.id,
+
+                blockThreadName:
+                    blockThread.name,
+
+                blockThreadCreatedBy:
+                    interaction.user.id,
+
+                blockThreadCreatedAt:
+                    new Date().toISOString()
+
+            };
+
+        }
+
+        // ----------------------------------------------
+        // SAVE TO RAILWAY
+        // ----------------------------------------------
+
+        fs.writeFileSync(
+            GANG_THREADS_FILE,
+            JSON.stringify(
+                gangThreads,
+                null,
+                4
+            )
+        );
+
+        // ----------------------------------------------
+        // SUCCESS
+        // ----------------------------------------------
+
+        return interaction.reply({
+
+            content:
+                `✅ **Block Thread Created Successfully**\n\n` +
+                `🏴 **Faction:** ${gang.name}\n` +
+                `🏘️ **Thread:** ${blockThread}\n` +
+                `📍 **Block:** ${gang.block || 'Not Assigned'}\n` +
+                `🖼️ **Image:** Uploaded\n\n` +
+                `🔒 **Permissions:**\n` +
+                `Faction members can view the thread but cannot reply or create posts.`,
+
+            ephemeral: true
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            '❌ Error creating Block thread:',
+            error
+        );
+
+        return interaction.reply({
+
+            content:
+                '❌ I could not create the Block thread.\n\n' +
+                'Make sure the bot has **View Channel**, **Send Messages**, **Send Messages in Threads**, **Create Posts**, and **Manage Threads** permissions in the Block Forum.',
+
+            ephemeral: true
 
         });
 
@@ -3991,13 +4463,6 @@ if (interaction.commandName === 'removegang') {
 
             }
 
-            // ------------------------------------------
-            // LEADER ROLE WILL BE DELETED BELOW
-            // ------------------------------------------
-            // No need to remove it individually because
-            // deleting the Discord role removes it from
-            // everyone automatically.
-
         }
 
     } catch (error) {
@@ -4057,12 +4522,15 @@ if (interaction.commandName === 'removegang') {
         );
 
         // Continue with gang deletion.
-        // The faction itself is still being removed.
+
     }
 
     // ==================================================
-    // DELETE GANG THREAD / FORUM
+    // DELETE BLOCK THREAD + NORMAL GANG FORUM
     // ==================================================
+
+    let blockThreadDeleted =
+        false;
 
     let gangThreadDeleted =
         false;
@@ -4083,16 +4551,102 @@ if (interaction.commandName === 'removegang') {
                     )
                 );
 
-            // ------------------------------------------
-            // FIND FORUM BY FACTION KEY
-            // ------------------------------------------
+            // ==================================================
+            // FIND ALL THREAD DATA FOR THIS FACTION
+            // ==================================================
+
+            const factionThreadEntries =
+                Object.entries(
+                    gangThreads
+                ).filter(
+                    ([, forum]) =>
+                        forum &&
+                        (
+                            forum.factionKey ===
+                            factionKey
+                        )
+                );
+
+            // ==================================================
+            // DELETE BLOCK THREAD
+            // ==================================================
+
+            for (
+                const [
+                    entryId,
+                    forumData
+                ]
+                of factionThreadEntries
+            ) {
+
+                if (
+                    forumData.blockThreadId &&
+                    forumData.blockForumChannelId
+                ) {
+
+                    try {
+
+                        const blockForum =
+                            await interaction.guild.channels
+                                .fetch(
+                                    forumData.blockForumChannelId
+                                )
+                                .catch(() => null);
+
+                        if (blockForum) {
+
+                            const blockThread =
+                                await blockForum.threads.fetch(
+                                    forumData.blockThreadId
+                                ).catch(() => null);
+
+                            if (blockThread) {
+
+                                await blockThread.delete(
+                                    `Block thread removed with faction ${gangName} by ${interaction.user.tag}`
+                                );
+
+                                blockThreadDeleted =
+                                    true;
+
+                            }
+
+                        }
+
+                    } catch (error) {
+
+                        console.error(
+                            `⚠️ Could not delete Block thread for ${gangName}:`,
+                            error
+                        );
+
+                    }
+
+                    // ------------------------------------------
+                    // REMOVE BLOCK DATA
+                    // ------------------------------------------
+
+                    delete gangThreads[
+                        entryId
+                    ];
+
+                }
+
+            }
+
+            // ==================================================
+            // DELETE NORMAL GANG FORUM
+            // ==================================================
 
             const gangThreadEntry =
-                Object.entries(gangThreads).find(
+                Object.entries(
+                    gangThreads
+                ).find(
                     ([, forum]) =>
                         forum &&
                         forum.factionKey ===
-                        factionKey
+                        factionKey &&
+                        forum.forumChannelId
                 );
 
             if (gangThreadEntry) {
@@ -4101,10 +4655,6 @@ if (interaction.commandName === 'removegang') {
                     forumId,
                     forumData
                 ] = gangThreadEntry;
-
-                // --------------------------------------
-                // DELETE ACTUAL DISCORD FORUM
-                // --------------------------------------
 
                 const forumChannel =
                     await interaction.guild.channels
@@ -4124,31 +4674,35 @@ if (interaction.commandName === 'removegang') {
 
                 }
 
-                // --------------------------------------
-                // REMOVE FROM gangThreads.json
-                // --------------------------------------
+                // ------------------------------------------
+                // REMOVE NORMAL FORUM DATA
+                // ------------------------------------------
 
                 delete gangThreads[
                     forumId
                 ];
 
-                fs.writeFileSync(
-                    GANG_THREADS_FILE,
-                    JSON.stringify(
-                        gangThreads,
-                        null,
-                        4
-                    )
-                );
-
             }
+
+            // ==================================================
+            // SAVE UPDATED THREAD DATABASE
+            // ==================================================
+
+            fs.writeFileSync(
+                GANG_THREADS_FILE,
+                JSON.stringify(
+                    gangThreads,
+                    null,
+                    4
+                )
+            );
 
         }
 
     } catch (error) {
 
         console.error(
-            '⚠️ Could not remove gang Forum:',
+            '⚠️ Could not remove faction thread data:',
             error
         );
 
@@ -4450,6 +5004,19 @@ if (interaction.commandName === 'removegang') {
 
                             {
                                 name:
+                                    '🏘️ Block Thread',
+
+                                value:
+                                    blockThreadDeleted
+                                        ? 'Deleted'
+                                        : 'Not Found',
+
+                                inline:
+                                    true
+                            },
+
+                            {
+                                name:
                                     '🏴 Flag Identifier',
 
                                 value:
@@ -4501,6 +5068,7 @@ if (interaction.commandName === 'removegang') {
             `👑 Faction Owner removed: ${factionOwnersRemoved}\n` +
             `🔐 Faction Member removed: ${factionMembersRemoved}\n` +
             `✍️ Gang Forum deleted: ${gangThreadDeleted ? 'Yes' : 'No'}\n` +
+            `🏘️ Block thread deleted: ${blockThreadDeleted ? 'Yes' : 'No'}\n` +
             `🏴 Flag identifier cleaned up: ${flagThreadDeleted ? 'Yes' : 'No'}`
 
     });
