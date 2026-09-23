@@ -2454,24 +2454,24 @@ if (interaction.commandName === 'blockthread') {
 
                 message: {
 
-                    content:
-                        `🏘️ **${gang.name}**\n\n` +
-                        `📍 **Block:** ${gang.block || 'Not Assigned'}\n\n` +
-                        `🖼️ **Block Image:**\n${blockImage.url}\n\n` +
-                        `🔒 **Faction Staff Only**\n` +
-                        `Faction members may view this thread but cannot reply or create posts.`,
+    embeds: [
+        {
+            description:
+                `🏘️ **${gangName}**\n\n` +
+                `📍 **Block:** ${gang.block || 'Not Assigned'}\n\n` +
+                `🖼️ **Block Image:** **${blockImage.name}**`,
 
-                    files: [
-                        {
-                            attachment:
-                                blockImage.url,
+            image: {
+                url: blockImage.url
+            },
 
-                            name:
-                                'block-image'
-                        }
-                    ]
+            color:
+                gang.color || 0xFF8C00
 
-                },
+        }
+    ]
+
+},
 
                 reason:
                     `Block thread created for ${gang.name} by ${interaction.user.tag}`
