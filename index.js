@@ -706,7 +706,14 @@ const commands = [
             .setDescription('The block/location to assign.')
             .setRequired(true)
             .setMaxLength(100)
-    ),
+    )
+
+    .addAttachmentOption(option =>
+    option
+        .setName('image')
+        .setDescription('Image showing the faction block')
+        .setRequired(false)
+),
 
    new SlashCommandBuilder()
     .setName('gangtier')
@@ -5924,9 +5931,14 @@ if (interaction.commandName === 'gangblock') {
     // HIGH FACTION STAFF ROLE
     // ----------------------------------------------
 
-    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+    const HIGH_FACTION_STAFF_ROLE_ID =
+        '1550018347804917760';
 
-    if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
+    if (
+        !interaction.member.roles.cache.has(
+            HIGH_FACTION_STAFF_ROLE_ID
+        )
+    ) {
 
         return interaction.reply({
             content:
@@ -5947,14 +5959,53 @@ if (interaction.commandName === 'gangblock') {
     const newBlock =
         interaction.options.getString('block');
 
+    const blockImage =
+        interaction.options.getAttachment('image');
+
+    // ----------------------------------------------
+    // CHECK BLOCK IMAGE
+    // ----------------------------------------------
+
+    if (blockImage) {
+
+        const validImageTypes = [
+            'image/png',
+            'image/jpeg',
+            'image/jpg',
+            'image/webp',
+            'image/gif'
+        ];
+
+        if (
+            blockImage.contentType &&
+            !validImageTypes.includes(
+                blockImage.contentType
+            )
+        ) {
+
+            return interaction.reply({
+                content:
+                    '❌ The block image must be a valid image file.\n\n' +
+                    'Accepted formats: **PNG, JPG, JPEG, WEBP, GIF**.',
+                ephemeral: true
+            });
+
+        }
+
+    }
+
     // ----------------------------------------------
     // FIND FACTION
     // ----------------------------------------------
 
-    const factionEntry = Object.entries(GANGS).find(
-        ([key, gang]) =>
-            gang.name.toLowerCase() === factionName.toLowerCase()
-    );
+    const factionEntry =
+        Object.entries(GANGS).find(
+            ([key, gang]) =>
+                gang &&
+                gang.name &&
+                gang.name.toLowerCase() ===
+                factionName.toLowerCase()
+        );
 
     if (!factionEntry) {
 
@@ -5966,7 +6017,10 @@ if (interaction.commandName === 'gangblock') {
 
     }
 
-    const [gangKey, gang] = factionEntry;
+    const [
+        gangKey,
+        gang
+    ] = factionEntry;
 
     // ----------------------------------------------
     // SAVE OLD BLOCK
@@ -5975,39 +6029,97 @@ if (interaction.commandName === 'gangblock') {
     const oldBlock =
         gang.block || 'Not Assigned';
 
-   // ----------------------------------------------
-// UPDATE BLOCK
-// ----------------------------------------------
-
-gang.block = newBlock;
-
-// ----------------------------------------------
-// SAVE FACTION DATA
-// ----------------------------------------------
-
-if (!saveFactions(GANGS)) {
-
-    return interaction.reply({
-        content:
-            '❌ The block was changed, but I could not save the faction data.',
-        ephemeral: true
-    });
-
-}
-
     // ----------------------------------------------
-    // CONFIRM
+    // SAVE OLD IMAGE
     // ----------------------------------------------
 
-    return interaction.reply({
+    const oldBlockImage =
+        gang.blockImage || null;
+
+    // ----------------------------------------------
+    // UPDATE BLOCK
+    // ----------------------------------------------
+
+    gang.block =
+        newBlock;
+
+    // ----------------------------------------------
+    // UPDATE BLOCK IMAGE
+    // ----------------------------------------------
+
+    if (blockImage) {
+
+        gang.blockImage =
+            blockImage.url;
+
+    }
+
+    // ----------------------------------------------
+    // SAVE FACTION DATA
+    // ----------------------------------------------
+
+    if (!saveFactions(GANGS)) {
+
+        return interaction.reply({
+            content:
+                '❌ The block was changed, but I could not save the faction data.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // BUILD CONFIRMATION
+    // ----------------------------------------------
+
+    const response = {
+
         content:
             `🏘️ **Faction Block Updated**\n\n` +
             `🏴 **Faction:** ${gang.name}\n` +
             `📍 **Previous Block:** ${oldBlock}\n` +
             `🏡 **New Block:** ${newBlock}\n\n` +
             `❤️ **Changed By:** ${interaction.user}`,
-        ephemeral: true
-    });
+
+        ephemeral:
+            true
+
+    };
+
+    // ----------------------------------------------
+    // SHOW NEW IMAGE
+    // ----------------------------------------------
+
+    if (gang.blockImage) {
+
+        response.embeds = [
+            {
+                title:
+                    `🏘️ ${gang.name} Block`,
+                description:
+                    `📍 **Block:** ${newBlock}`,
+                image: {
+                    url:
+                        gang.blockImage
+                },
+                color:
+                    0xFF8C00,
+                footer: {
+                    text:
+                        'Lynwood Factions • Block Information'
+                }
+            }
+        ];
+
+    }
+
+    // ----------------------------------------------
+    // CONFIRM
+    // ----------------------------------------------
+
+    return interaction.reply(
+        response
+    );
 
 }
 
