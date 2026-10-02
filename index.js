@@ -1047,6 +1047,16 @@ new SlashCommandBuilder()
             .setName('role')
             .setDescription('The role to give to everyone')
             .setRequired(true)
+    ),
+
+    new SlashCommandBuilder()
+    .setName('removerole')
+    .setDescription('Remove a role from every member who has it.')
+    .addRoleOption(option =>
+        option
+            .setName('role')
+            .setDescription('The role to remove from everyone.')
+            .setRequired(true)
     )
 
 ].map(command => command.toJSON());
@@ -4098,7 +4108,7 @@ if (
         // ----------------------------------------------
 
 const FACTION_MEMBER_ROLE_ID =
-    '1545485022193123451';
+    '1555302352955777045';
 
 const factionMemberRole =
     interaction.guild.roles.cache.get(
@@ -4257,7 +4267,7 @@ if (interaction.commandName === 'removegang') {
         '1478512249936150539';
 
     const FACTION_MEMBER_ROLE_ID =
-        '1545485022193123451';
+        '1555302352955777045';
 
     if (
         !interaction.member.roles.cache.has(
@@ -5123,7 +5133,7 @@ if (interaction.commandName === 'removegang') {
 if (interaction.commandName === 'gangremove') {
 
     const FACTION_MEMBER_ROLE_ID =
-        '1545485022193123451';
+        '1555302352955777045';
 
     const targetUser =
         interaction.options.getMember('user');
@@ -6189,7 +6199,7 @@ if (interaction.commandName === 'gangtransfer') {
         '1478512249936150539';
 
     const FACTION_MEMBER_ROLE_ID =
-        '1545485022193123451';
+        '1555302352955777045';
 
     // ----------------------------------------------
     // ACKNOWLEDGE COMMAND IMMEDIATELY
@@ -10159,6 +10169,249 @@ if (interaction.commandName === 'roleall') {
         });
 
     }
+
+}
+
+// ==================================================
+// /removerole
+// ==================================================
+
+if (interaction.commandName === 'removerole') {
+
+    // ----------------------------------------------
+    // HIGH FACTION STAFF ONLY
+    // ----------------------------------------------
+
+    const HIGH_FACTION_STAFF_ROLE_ID =
+        '1550018347804917760';
+
+    if (
+        !interaction.member.roles.cache.has(
+            HIGH_FACTION_STAFF_ROLE_ID
+        )
+    ) {
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/removerole`.\n\n' +
+                'Only **High Faction Staff** can remove a role from everyone.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // GET ROLE
+    // ----------------------------------------------
+
+    const role =
+        interaction.options.getRole('role');
+
+    if (!role) {
+        return interaction.reply({
+            content:
+                '❌ Please select a role.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // BOT ROLE HIERARCHY CHECK
+    // ----------------------------------------------
+
+    const botMember =
+        interaction.guild.members.me;
+
+    if (!botMember) {
+        return interaction.reply({
+            content:
+                '❌ I could not find my bot member in this server.',
+            ephemeral: true
+        });
+    }
+
+    if (
+        role.position >=
+        botMember.roles.highest.position
+    ) {
+        return interaction.reply({
+            content:
+                '❌ I cannot remove this role because it is **above or equal to my highest role**.\n\n' +
+                'Move my bot role above the role you want me to remove.',
+            ephemeral: true
+        });
+    }
+
+    // ----------------------------------------------
+    // ACKNOWLEDGE
+    // ----------------------------------------------
+
+    await interaction.deferReply({
+        ephemeral: true
+    });
+
+    // ----------------------------------------------
+    // FETCH ALL MEMBERS
+    // ----------------------------------------------
+
+    try {
+
+        await interaction.guild.members.fetch();
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not fetch guild members:',
+            error
+        );
+
+        return interaction.editReply({
+            content:
+                '❌ I could not fetch the server members.'
+        });
+
+    }
+
+    // ----------------------------------------------
+    // FIND MEMBERS WITH ROLE
+    // ----------------------------------------------
+
+    const membersWithRole =
+        interaction.guild.members.cache.filter(
+            member =>
+                member.roles.cache.has(role.id)
+        );
+
+    // ----------------------------------------------
+    // REMOVE ROLE
+    // ----------------------------------------------
+
+    let removed = 0;
+    let failed = 0;
+
+    for (
+        const member
+        of membersWithRole.values()
+    ) {
+
+        try {
+
+            await member.roles.remove(
+                role,
+                `Removed by ${interaction.user.tag} using /removerole`
+            );
+
+            removed++;
+
+        } catch (error) {
+
+            failed++;
+
+            console.error(
+                `❌ Could not remove role from ${member.user.tag}:`,
+                error
+            );
+
+        }
+    }
+
+    // ----------------------------------------------
+    // LOG
+    // ----------------------------------------------
+
+    try {
+
+        const logChannel =
+            interaction.guild.channels.cache.get(
+                GANG_LOG_CHANNEL_ID
+            );
+
+        if (logChannel) {
+
+            await logChannel.send({
+                embeds: [
+                    {
+                        title:
+                            '🗑️ Role Removed From Members',
+
+                        description:
+                            `**${role.name}** was removed from all members who had it.`,
+
+                        color:
+                            0xED4245,
+
+                        fields: [
+                            {
+                                name:
+                                    '🏷️ Role',
+
+                                value:
+                                    `${role}`,
+
+                                inline:
+                                    true
+                            },
+                            {
+                                name:
+                                    ' Actioned By',
+
+                                value:
+                                    `${interaction.user}`,
+
+                                inline:
+                                    true
+                            },
+                            {
+                                name:
+                                    '✔️ Removed', 
+
+                                value:
+                                    `${removed}`,
+
+                                inline:
+                                    true
+                            },
+                            {
+                                name:
+                                    '⚠️ Failed',
+
+                                value:
+                                    `${failed}`,
+
+                                inline:
+                                    true
+                            }
+                        ],
+
+                        timestamp:
+                            new Date().toISOString()
+                    }
+                ]
+            });
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            '⚠️ Could not log /removerole:',
+            error
+        );
+
+    }
+
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
+
+    return interaction.editReply({
+
+        content:
+            `✅ **Role Removal Complete**\n\n` +
+            `🏷️ **Role:** ${role}\n` +
+            `> **Members Found:** ${membersWithRole.size}\n` +
+            `✅ **Successfully Removed:** ${removed}\n` +
+            `❌ **Failed:** ${failed}`
+
+    });
 
 }
 
