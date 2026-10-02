@@ -2878,11 +2878,31 @@ if (interaction.commandName === 'create-flagthread') {
 
     if (existingFlag) {
 
-        const existingThread =
+        // Try to find the existing thread in cache first
+        let existingThread =
             flagForum.threads.cache.get(
                 existingFlag.threadId
             );
 
+        // If it is not cached, try fetching it
+        if (!existingThread) {
+
+            try {
+
+                existingThread =
+                    await flagForum.threads.fetch(
+                        existingFlag.threadId
+                    );
+
+            } catch {
+
+                existingThread = null;
+
+            }
+
+        }
+
+        // Existing thread still exists
         if (existingThread) {
 
             return interaction.reply({
@@ -2893,9 +2913,19 @@ if (interaction.commandName === 'create-flagthread') {
 
         }
 
+        // Thread no longer exists, remove stale database entry
         delete flagThreads[
             existingFlag.threadId
         ];
+
+        fs.writeFileSync(
+            FLAG_THREADS_FILE,
+            JSON.stringify(
+                flagThreads,
+                null,
+                4
+            )
+        );
 
     }
 
