@@ -3310,7 +3310,7 @@ if (
 // ----------------------------------------------
 
 const FACTION_OWNER_ROLE_ID =
-    '1478512249936150539';
+    '1551957052941930629';
 
 const factionOwnerRole =
     interaction.guild.roles.cache.get(
@@ -6226,7 +6226,7 @@ if (interaction.commandName === 'gangleader') {
 if (interaction.commandName === 'gangtransfer') {
 
     const FACTION_OWNER_ROLE_ID =
-        '1478512249936150539';
+        '1551957052941930629';
 
     const FACTION_MEMBER_ROLE_ID =
         '1555302352955777045';
