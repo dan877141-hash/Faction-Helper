@@ -4138,7 +4138,7 @@ if (
         // ----------------------------------------------
 
 const FACTION_MEMBER_ROLE_ID =
-    '1555302352955777045';
+    '1551957052941930627';
 
 const factionMemberRole =
     interaction.guild.roles.cache.get(
@@ -5163,7 +5163,7 @@ if (interaction.commandName === 'removegang') {
 if (interaction.commandName === 'gangremove') {
 
     const FACTION_MEMBER_ROLE_ID =
-        '1555302352955777045';
+        '1551957052941930627';
 
     const targetUser =
         interaction.options.getMember('user');
@@ -6229,7 +6229,7 @@ if (interaction.commandName === 'gangtransfer') {
         '1551957052941930629';
 
     const FACTION_MEMBER_ROLE_ID =
-        '1555302352955777045';
+        '1551957052941930627';
 
     // ----------------------------------------------
     // ACKNOWLEDGE COMMAND IMMEDIATELY
