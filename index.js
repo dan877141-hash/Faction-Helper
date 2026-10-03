@@ -273,7 +273,7 @@ const GANG_FORUM_CATEGORY_ID = process.env.GANG_FORUM_CATEGORY_ID;
 const FLAG_FORUM_CHANNEL_ID =
     process.env.FLAG_FORUM_CHANNEL_ID;
 
-const BLOCK_FORUM_CHANNEL_ID = '1549677487955382302';
+const BLOCK_FORUM_CHANNEL_ID = '1551957056796233845';
 
 // ======================================================
 // GANG CONFIGURATION
@@ -1779,7 +1779,7 @@ if (interaction.commandName === 'create-gangthread') {
     // ----------------------------------------------
 
     const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
+        '1551957053042466903';
 
     // ----------------------------------------------
     // CHECK FACTION STAFF
@@ -2234,10 +2234,10 @@ if (interaction.commandName === 'blockthread') {
     // ----------------------------------------------
 
     const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
+        '1551957053042466903';
 
     const BLOCK_FORUM_CHANNEL_ID =
-        '1549677487955382302';
+        '1551957056796233845';
 
     // ----------------------------------------------
     // CHECK FACTION STAFF
@@ -2683,7 +2683,7 @@ if (interaction.commandName === 'create-flagthread') {
     // ----------------------------------------------
 
     const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
+        '1551957053113761955';
 
     if (
         !interaction.member.roles.cache.has(
@@ -3072,7 +3072,7 @@ if (interaction.commandName === 'creategang') {
     // HIGH FACTION STAFF ROLE
     // ----------------------------------------------
 
-    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+    const HIGH_FACTION_STAFF_ROLE_ID = '1551957053113761955';
 
     if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
 
@@ -3507,7 +3507,7 @@ if (
 if (interaction.commandName === 'removeflagthread') {
 
     const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
+        '1551957053113761955';
 
     // ----------------------------------------------
     // PERMISSION CHECK
@@ -4291,13 +4291,13 @@ if (interaction.commandName === 'removegang') {
     // ----------------------------------------------
 
     const HIGH_FACTION_STAFF_ROLE_ID =
-        '1550018347804917760';
+        '1551957053113761955';
 
     const FACTION_OWNER_ROLE_ID =
-        '1478512249936150539';
+        '1551957052941930629';
 
     const FACTION_MEMBER_ROLE_ID =
-        '1555302352955777045';
+        '1551957052941930627';
 
     if (
         !interaction.member.roles.cache.has(
@@ -5393,7 +5393,7 @@ if (interaction.commandName === 'probationadd') {
     // ----------------------------------------------
 
     const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
+        '1551957053042466903';
 
     if (
         !interaction.member.roles.cache.has(
@@ -5602,7 +5602,7 @@ if (interaction.commandName === 'probationlist') {
     // ----------------------------------------------
 
     const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
+        '1551957053042466903';
 
     if (
         !interaction.member.roles.cache.has(
@@ -6582,7 +6582,7 @@ if (interaction.commandName === 'gangblock') {
     // ----------------------------------------------
 
     const HIGH_FACTION_STAFF_ROLE_ID =
-        '1550018347804917760';
+        '1551957053113761955';
 
     if (
         !interaction.member.roles.cache.has(
@@ -6783,7 +6783,7 @@ if (interaction.commandName === 'gangtier') {
     // HIGH FACTION STAFF ROLE
     // ----------------------------------------------
 
-    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+    const HIGH_FACTION_STAFF_ROLE_ID = '1551957053042466903';
 
     if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
 
@@ -6880,7 +6880,7 @@ if (interaction.commandName === 'gangtransfer') {
     // HIGH FACTION STAFF ROLE
     // ----------------------------------------------
 
-    const HIGH_FACTION_STAFF_ROLE_ID = '1478512230734499932';
+    const HIGH_FACTION_STAFF_ROLE_ID = '1551957053113761955';
 
     if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
 
@@ -7060,7 +7060,7 @@ if (interaction.commandName === 'gangrename') {
     // HIGH FACTION STAFF ROLE
     // ----------------------------------------------
 
-    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+    const HIGH_FACTION_STAFF_ROLE_ID = '1551957053113761955';
 
     if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
 
@@ -7175,7 +7175,7 @@ if (interaction.commandName === 'strikeadd') {
     // HIGH FACTION STAFF ROLE
     // ----------------------------------------------
 
-    const HIGH_FACTION_STAFF_ROLE_ID = '1550018347804917760';
+    const HIGH_FACTION_STAFF_ROLE_ID = '1551957053113761955';
 
     if (!interaction.member.roles.cache.has(HIGH_FACTION_STAFF_ROLE_ID)) {
 
@@ -7497,13 +7497,13 @@ if (interaction.commandName === 'strikehistory') {
 
 if (interaction.commandName === 'strikeremove') {
 
-    const FACTION_STAFF_ROLE_ID = '1550018347804917760';
+    const FACTION_STAFF_ROLE_ID = '1551957053113761955';
 
     // ----------------------------------------------
     // CHECK FACTION STAFF
     // ----------------------------------------------
 
-    if (!interaction.member.roles.cache.has(1550018347804917760)) {
+    if (!interaction.member.roles.cache.has(1551957053113761955)) {
 
         return interaction.reply({
             content:
@@ -7619,7 +7619,7 @@ const strikes = getFactionStrikes(gangKey);
 
 if (interaction.commandName === 'strikeclear') {
 
-    const FACTION_STAFF_ROLE_ID = '1550018347804917760';
+    const FACTION_STAFF_ROLE_ID = '1551957053113761955';
 
     // ----------------------------------------------
     // CHECK FACTION STAFF
@@ -7785,7 +7785,7 @@ if (interaction.commandName === 'gangmoney') {
 
 if (interaction.commandName === 'gangpayment') {
 
-    const FACTION_STAFF_ROLE_ID = '1550018347804917760';
+    const FACTION_STAFF_ROLE_ID = '1551957053042466903';
 
     // ----------------------------------------------
     // CHECK FACTION STAFF
@@ -7915,7 +7915,7 @@ saveFactionTransactions(factionTransactions);
 
 if (interaction.commandName === 'gangpayout') {
 
-    const FACTION_STAFF_ROLE_ID = '1550018347804917760';
+    const FACTION_STAFF_ROLE_ID = '1551957053042466903';
 
     // ----------------------------------------------
     // CHECK FACTION STAFF
@@ -8066,7 +8066,7 @@ saveFactionTransactions(factionTransactions);
 
 if (interaction.commandName === 'gangtransactions') {
 
-    const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+    const FACTION_STAFF_ROLE_ID = '1551957053042466903';
 
     // ----------------------------------------------
     // CHECK FACTION STAFF
@@ -8213,7 +8213,7 @@ if (interaction.commandName === 'gangtransactions') {
 
 if (interaction.commandName === 'activity') {
 
-    const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+    const FACTION_STAFF_ROLE_ID = '1551957053042466903';
 
     // ----------------------------------------------
     // HIGH FACTION STAFF ONLY
@@ -8450,7 +8450,7 @@ if (interaction.commandName === 'activity') {
 if (interaction.commandName === 'inactive') {
 
     const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
+        '1551957053042466903';
 
     // ----------------------------------------------
     // FACTION STAFF CHECK
@@ -8732,7 +8732,7 @@ if (interaction.commandName === 'inactive') {
 if (interaction.commandName === 'activitylog') {
 
     const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
+        '1551957053042466903';
 
     // ----------------------------------------------
     // STAFF CHECK
@@ -9505,7 +9505,7 @@ if (interaction.commandName === 'delmsg') {
     // ----------------------------------------------
 
     const HIGH_FACTION_STAFF_ROLE_ID =
-        '1550018347804917760';
+        '1551957053113761955';
 
     if (
         !interaction.member.roles.cache.has(
@@ -9612,7 +9612,7 @@ if (interaction.commandName === 'delete-all') {
     // ----------------------------------------------
 
     const HIGH_FACTION_STAFF_ROLE_ID =
-        '1550018347804917760';
+        '1551957053113761955';
 
     if (
         !interaction.member.roles.cache.has(
@@ -9723,7 +9723,7 @@ if (interaction.commandName === 'bulkrole') {
     // ----------------------------------------------
 
     const HIGH_FACTION_STAFF_ROLE_ID =
-        '1550018347804917760';
+        '1551957053113761955';
 
     if (
         !interaction.member.roles.cache.has(
@@ -9937,7 +9937,7 @@ if (interaction.commandName === 'roleall') {
     // ----------------------------------------------
 
     const HIGH_FACTION_STAFF_ROLE_ID =
-        '1550018347804917760';
+        '1551957053113761955';
 
     if (
         !interaction.member.roles.cache.has(
@@ -10213,7 +10213,7 @@ if (interaction.commandName === 'removerole') {
     // ----------------------------------------------
 
     const HIGH_FACTION_STAFF_ROLE_ID =
-        '1550018347804917760';
+        '1551957053113761955';
 
     if (
         !interaction.member.roles.cache.has(
@@ -10462,7 +10462,7 @@ client.on('messageCreate', async message => {
     // !gangrules
     if (message.content.trim().toLowerCase() === '!gangrules') {
 
-         const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+         const FACTION_STAFF_ROLE_ID = '1551957053042466903';
 
     // Faction Staff only
     if (!message.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
@@ -10525,7 +10525,7 @@ if (
     // ----------------------------------------------
 
     const FACTION_STAFF_ROLE_ID =
-        '1545272829891837973';
+        '1551957053042466903';
 
     if (
         !message.member.roles.cache.has(
@@ -10643,7 +10643,7 @@ if (
     // !newgangs — Faction Staff Only
     if (message.content === '!newgangs') {
 
-        const FACTION_STAFF_ROLE_ID = '1545272829891837973';
+        const FACTION_STAFF_ROLE_ID = '1551957053042466903';
 
         if (!message.member.roles.cache.has(FACTION_STAFF_ROLE_ID)) {
 
