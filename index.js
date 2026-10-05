@@ -989,22 +989,32 @@ new SlashCommandBuilder()
     new SlashCommandBuilder()
     .setName('blockthread')
     .setDescription('Create a faction Block thread')
+
     .addStringOption(option =>
         option
             .setName('gangname')
-            .setDescription('The faction this Block thread belongs to')
+            .setDescription('The faction name')
             .setRequired(true)
     )
+
     .addStringOption(option =>
         option
             .setName('threadname')
-            .setDescription('Name of the Block thread')
+            .setDescription('The name of the Block thread')
             .setRequired(true)
     )
+
+    .addStringOption(option =>
+        option
+            .setName('color')
+            .setDescription('Embed color, e.g. #FF0000')
+            .setRequired(true)
+    )
+
     .addAttachmentOption(option =>
         option
             .setName('image')
-            .setDescription('Upload the image for this Block thread')
+            .setDescription('Upload the Block image')
             .setRequired(true)
     ),
 
@@ -2266,17 +2276,34 @@ if (interaction.commandName === 'blockthread') {
     const gangName =
         interaction.options
             .getString('gangname')
-            .trim();
+            ?.trim();
 
     const threadName =
         interaction.options
             .getString('threadname')
-            .trim();
+            ?.trim();
+
+    const colorInput =
+        interaction.options
+            .getString('color')
+            ?.trim();
 
     const blockImage =
-        interaction.options.getAttachment(
-            'image'
-        );
+        interaction.options.getAttachment('image');
+
+    // ----------------------------------------------
+    // VALIDATE GANG NAME
+    // ----------------------------------------------
+
+    if (!gangName) {
+
+        return interaction.reply({
+            content:
+                '❌ You must provide a faction name.',
+            ephemeral: true
+        });
+
+    }
 
     // ----------------------------------------------
     // VALIDATE THREAD NAME
@@ -2293,6 +2320,50 @@ if (interaction.commandName === 'blockthread') {
     }
 
     // ----------------------------------------------
+    // VALIDATE COLOR
+    // ----------------------------------------------
+
+    if (!colorInput) {
+
+        return interaction.reply({
+            content:
+                '❌ You must provide a hex color.\n\n' +
+                'Example: `#FF0000`',
+            ephemeral: true
+        });
+
+    }
+
+    // Remove # if the user included it
+
+    const cleanColor =
+        colorInput.replace('#', '');
+
+    // Make sure it is exactly 6 hexadecimal characters
+
+    if (
+        !/^[0-9A-Fa-f]{6}$/.test(cleanColor)
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ Invalid hex color.\n\n' +
+                'Please use a valid 6-digit hex color.\n\n' +
+                'Example:\n' +
+                '`#FF0000`\n' +
+                '`#00FF00`\n' +
+                '`#0000FF`',
+            ephemeral: true
+        });
+
+    }
+
+    // Convert hex to Discord integer
+
+    const factionColor =
+        parseInt(cleanColor, 16);
+
+    // ----------------------------------------------
     // VALIDATE IMAGE
     // ----------------------------------------------
 
@@ -2305,6 +2376,10 @@ if (interaction.commandName === 'blockthread') {
         });
 
     }
+
+    // ----------------------------------------------
+    // VALID IMAGE TYPES
+    // ----------------------------------------------
 
     const validImageTypes = [
         'image/png',
@@ -2340,7 +2415,7 @@ if (interaction.commandName === 'blockthread') {
                 gang &&
                 gang.name &&
                 gang.name.toLowerCase() ===
-                gangName.toLowerCase()
+                    gangName.toLowerCase()
         );
 
     if (!factionEntry) {
@@ -2436,7 +2511,7 @@ if (interaction.commandName === 'blockthread') {
     }
 
     // ----------------------------------------------
-    // FIND FACTION DATABASE ENTRY
+    // FIND EXISTING FACTION ENTRY
     // ----------------------------------------------
 
     let factionThreadEntry =
@@ -2472,7 +2547,8 @@ if (interaction.commandName === 'blockthread') {
 
                 return interaction.reply({
                     content:
-                        `❌ **${gang.name}** already has a Block thread:\n${existingBlockThread}\n\n` +
+                        `❌ **${gang.name}** already has a Block thread:\n` +
+                        `${existingBlockThread}\n\n` +
                         `Delete the existing Block thread first if you want to create a new one.`,
                     ephemeral: true
                 });
@@ -2488,162 +2564,272 @@ if (interaction.commandName === 'blockthread') {
             delete factionThreadData.blockForumChannelId;
             delete factionThreadData.blockThreadCreatedBy;
             delete factionThreadData.blockThreadCreatedAt;
+            delete factionThreadData.blockColor;
 
         }
 
     }
 
     // ----------------------------------------------
-// CREATE BLOCK THREAD
-// ----------------------------------------------
+    // CREATE BLOCK THREAD
+    // ----------------------------------------------
 
-try {
+    try {
 
-    const blockEmbed = new EmbedBuilder()
-        .setDescription(
-            `🏘️ **${gangName}**\n\n` +
-            `📍 **Block:** ${gang.block || 'Not Assigned'}\n\n` +
-            `🖼️ **Block Image:** **${blockImage.name}**`
-        )
-        .setImage(blockImage.url)
-        .setColor(
-            typeof gang.color === 'number'
-                ? gang.color
-                : 0xFF8C00
+        // ------------------------------------------
+        // CREATE EMBED
+        // ------------------------------------------
+
+        const blockEmbed =
+            new EmbedBuilder()
+
+                .setDescription(
+
+                    `**${gang.name} - Block**\n\n` +
+
+                    `📍 **Block:** ` +
+                    `${gang.block || 'Not Assigned'}\n\n` +
+
+                    `🖼️ **Block Image:** ` +
+                    `**${blockImage.name}**`
+
+                )
+
+                .setImage(
+                    blockImage.url
+                )
+
+                .setColor(
+                    factionColor
+                );
+
+        // ------------------------------------------
+        // CREATE FORUM THREAD
+        // ------------------------------------------
+
+        const blockThread =
+            await blockForum.threads.create({
+
+                name:
+                    threadName,
+
+                message: {
+
+                    embeds: [
+                        blockEmbed
+                    ]
+
+                },
+
+                reason:
+                    `Block thread created for ${gang.name} by ${interaction.user.tag}`
+
+            });
+
+        // ------------------------------------------
+        // SAVE BLOCK THREAD
+        // ------------------------------------------
+
+        if (factionThreadEntry) {
+
+            const [
+                forumId
+            ] = factionThreadEntry;
+
+            gangThreads[
+                forumId
+            ].blockThreadId =
+                blockThread.id;
+
+            gangThreads[
+                forumId
+            ].blockThreadName =
+                blockThread.name;
+
+            gangThreads[
+                forumId
+            ].blockForumChannelId =
+                BLOCK_FORUM_CHANNEL_ID;
+
+            gangThreads[
+                forumId
+            ].block =
+                gang.block || null;
+
+            gangThreads[
+                forumId
+            ].blockImage =
+                blockImage.url;
+
+            gangThreads[
+                forumId
+            ].blockColor =
+                `#${cleanColor.toUpperCase()}`;
+
+            gangThreads[
+                forumId
+            ].blockThreadCreatedBy =
+                interaction.user.id;
+
+            gangThreads[
+                forumId
+            ].blockThreadCreatedAt =
+                new Date().toISOString();
+
+        } else {
+
+            // ------------------------------------------
+            // CREATE STANDALONE DATABASE ENTRY
+            // ------------------------------------------
+
+            gangThreads[
+                `block_${factionKey}`
+            ] = {
+
+                factionKey:
+                    factionKey,
+
+                name:
+                    gang.name,
+
+                gangRoleId:
+                    gang.gangRole,
+
+                block:
+                    gang.block || null,
+
+                blockImage:
+                    blockImage.url,
+
+                blockColor:
+                    `#${cleanColor.toUpperCase()}`,
+
+                blockForumChannelId:
+                    BLOCK_FORUM_CHANNEL_ID,
+
+                blockThreadId:
+                    blockThread.id,
+
+                blockThreadName:
+                    blockThread.name,
+
+                blockThreadCreatedBy:
+                    interaction.user.id,
+
+                blockThreadCreatedAt:
+                    new Date().toISOString()
+
+            };
+
+        }
+
+        // ----------------------------------------------
+        // SAVE DATABASE
+        // ----------------------------------------------
+
+        fs.writeFileSync(
+
+            GANG_THREADS_FILE,
+
+            JSON.stringify(
+                gangThreads,
+                null,
+                4
+            )
+
         );
 
-    const blockThread =
-        await blockForum.threads.create({
+        // ----------------------------------------------
+        // SUCCESS MESSAGE
+        // ----------------------------------------------
 
-            name: threadName,
+        return interaction.reply({
 
-            message: {
-                embeds: [blockEmbed]
-            },
+            content:
 
-            reason:
-                `Block thread created for ${gang.name} by ${interaction.user.tag}`
+                `✅ **Block Thread Created Successfully**\n\n` +
+
+                `🏴 **Faction:** ${gang.name}\n` +
+
+                `🏘️ **Thread:** ${blockThread}\n` +
+
+                `📍 **Block:** ${gang.block || 'Not Assigned'}\n` +
+
+                `🎨 **Color:** \`#${cleanColor.toUpperCase()}\`\n` +
+
+                `🖼️ **Image:** Uploaded\n\n` +
+
+                `🔒 **Permissions:**\n` +
+
+                `Faction members can view the thread but cannot reply or create posts.`,
+
+            ephemeral: true
 
         });
 
-    // ----------------------------------------------
-    // SAVE BLOCK THREAD
-    // ----------------------------------------------
+    } catch (error) {
 
-    if (factionThreadEntry) {
+        // ----------------------------------------------
+        // DETAILED ERROR LOGGING
+        // ----------------------------------------------
 
-        const [
-            forumId
-        ] = factionThreadEntry;
+        console.error(
+            '=========================================='
+        );
 
-        gangThreads[forumId].blockThreadId =
-            blockThread.id;
+        console.error(
+            '❌ ERROR CREATING BLOCK THREAD'
+        );
 
-        gangThreads[forumId].blockThreadName =
-            blockThread.name;
+        console.error(
+            '=========================================='
+        );
 
-        gangThreads[forumId].blockForumChannelId =
-            BLOCK_FORUM_CHANNEL_ID;
+        console.error(
+            'Error:',
+            error
+        );
 
-        gangThreads[forumId].block =
-            gang.block || null;
+        console.error(
+            'Error Code:',
+            error.code
+        );
 
-        gangThreads[forumId].blockImage =
-            blockImage.url;
+        console.error(
+            'Error Message:',
+            error.message
+        );
 
-        gangThreads[forumId].blockThreadCreatedBy =
-            interaction.user.id;
+        console.error(
+            'Raw Error:',
+            error.rawError
+        );
 
-        gangThreads[forumId].blockThreadCreatedAt =
-            new Date().toISOString();
+        console.error(
+            '=========================================='
+        );
 
-    } else {
+        // ----------------------------------------------
+        // ERROR RESPONSE
+        // ----------------------------------------------
 
-        gangThreads[`block_${factionKey}`] = {
+        return interaction.reply({
 
-            factionKey: factionKey,
+            content:
 
-            name: gang.name,
+                `❌ **I could not create the Block thread.**\n\n` +
 
-            gangRoleId: gang.gangRole,
+                `**Error:** \`${error.message || 'Unknown error'}\`\n` +
 
-            block:
-                gang.block || null,
+                `**Code:** \`${error.code || 'Unknown'}\`\n\n` +
 
-            blockImage:
-                blockImage.url,
+                `The full error has been printed to the Railway console.`,
 
-            blockForumChannelId:
-                BLOCK_FORUM_CHANNEL_ID,
+            ephemeral: true
 
-            blockThreadId:
-                blockThread.id,
-
-            blockThreadName:
-                blockThread.name,
-
-            blockThreadCreatedBy:
-                interaction.user.id,
-
-            blockThreadCreatedAt:
-                new Date().toISOString()
-
-        };
+        });
 
     }
-
-    // ----------------------------------------------
-    // SAVE TO RAILWAY
-    // ----------------------------------------------
-
-    fs.writeFileSync(
-        GANG_THREADS_FILE,
-        JSON.stringify(
-            gangThreads,
-            null,
-            4
-        )
-    );
-
-    // ----------------------------------------------
-    // SUCCESS
-    // ----------------------------------------------
-
-    return interaction.reply({
-
-        content:
-            `✅ **Block Thread Created Successfully**\n\n` +
-            `🏴 **Faction:** ${gang.name}\n` +
-            `🏘️ **Thread:** ${blockThread}\n` +
-            `📍 **Block:** ${gang.block || 'Not Assigned'}\n` +
-            `🖼️ **Image:** Uploaded\n\n` +
-            `🔒 **Permissions:**\n` +
-            `Faction members can view the thread but cannot reply or create posts.`,
-
-        ephemeral: true
-
-    });
-
-} catch (error) {
-
-    console.error('❌ Error creating Block thread:', error);
-    console.error('Error code:', error.code);
-    console.error('Error message:', error.message);
-    console.error('Error raw:', error.rawError);
-
-    return interaction.reply({
-
-        content:
-            `❌ I could not create the Block thread.\n\n` +
-            `**Error:** \`${error.message || 'Unknown error'}\`\n` +
-            `**Code:** \`${error.code || 'Unknown'}\`\n\n` +
-            `Check the Railway console for the full error.`,
-
-        ephemeral: true
-
-    });
-
-}
 
 }
 
