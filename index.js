@@ -7,6 +7,7 @@ const {
     REST,
     Routes,
     ChannelType,
+    EmbedBuilder
 } = require('discord.js');
 
 const fs = require('fs');
@@ -2493,182 +2494,156 @@ if (interaction.commandName === 'blockthread') {
     }
 
     // ----------------------------------------------
-    // CREATE BLOCK THREAD
-    // ----------------------------------------------
+// CREATE BLOCK THREAD
+// ----------------------------------------------
 
-    try {
+try {
 
-        const blockThread =
-            await blockForum.threads.create({
+    const blockEmbed = new EmbedBuilder()
+        .setDescription(
+            `🏘️ **${gangName}**\n\n` +
+            `📍 **Block:** ${gang.block || 'Not Assigned'}\n\n` +
+            `🖼️ **Block Image:** **${blockImage.name}**`
+        )
+        .setImage(blockImage.url)
+        .setColor(
+            typeof gang.color === 'number'
+                ? gang.color
+                : 0xFF8C00
+        );
 
-                name:
-                    threadName,
+    const blockThread =
+        await blockForum.threads.create({
 
-                message: {
+            name: threadName,
 
-    embeds: [
-        {
-            description:
-                `🏘️ **${gangName}**\n\n` +
-                `📍 **Block:** ${gang.block || 'Not Assigned'}\n\n` +
-                `🖼️ **Block Image:** **${blockImage.name}**`,
-
-            image: {
-                url: blockImage.url
+            message: {
+                embeds: [blockEmbed]
             },
 
-            color:
-                gang.color || 0xFF8C00
-
-        }
-    ]
-
-},
-
-                reason:
-                    `Block thread created for ${gang.name} by ${interaction.user.tag}`
-
-            });
-
-        // ----------------------------------------------
-        // SAVE BLOCK THREAD
-        // ----------------------------------------------
-
-        if (factionThreadEntry) {
-
-            const [
-                forumId
-            ] = factionThreadEntry;
-
-            gangThreads[
-                forumId
-            ].blockThreadId =
-                blockThread.id;
-
-            gangThreads[
-                forumId
-            ].blockThreadName =
-                blockThread.name;
-
-            gangThreads[
-                forumId
-            ].blockForumChannelId =
-                BLOCK_FORUM_CHANNEL_ID;
-
-            gangThreads[
-                forumId
-            ].block =
-                gang.block || null;
-
-            gangThreads[
-                forumId
-            ].blockImage =
-                blockImage.url;
-
-            gangThreads[
-                forumId
-            ].blockThreadCreatedBy =
-                interaction.user.id;
-
-            gangThreads[
-                forumId
-            ].blockThreadCreatedAt =
-                new Date().toISOString();
-
-        } else {
-
-            // ------------------------------------------
-            // CREATE STANDALONE DATABASE ENTRY
-            // ------------------------------------------
-
-            gangThreads[
-                `block_${factionKey}`
-            ] = {
-
-                factionKey:
-                    factionKey,
-
-                name:
-                    gang.name,
-
-                gangRoleId:
-                    gang.gangRole,
-
-                block:
-                    gang.block || null,
-
-                blockImage:
-                    blockImage.url,
-
-                blockForumChannelId:
-                    BLOCK_FORUM_CHANNEL_ID,
-
-                blockThreadId:
-                    blockThread.id,
-
-                blockThreadName:
-                    blockThread.name,
-
-                blockThreadCreatedBy:
-                    interaction.user.id,
-
-                blockThreadCreatedAt:
-                    new Date().toISOString()
-
-            };
-
-        }
-
-        // ----------------------------------------------
-        // SAVE TO RAILWAY
-        // ----------------------------------------------
-
-        fs.writeFileSync(
-            GANG_THREADS_FILE,
-            JSON.stringify(
-                gangThreads,
-                null,
-                4
-            )
-        );
-
-        // ----------------------------------------------
-        // SUCCESS
-        // ----------------------------------------------
-
-        return interaction.reply({
-
-            content:
-                `✅ **Block Thread Created Successfully**\n\n` +
-                `🏴 **Faction:** ${gang.name}\n` +
-                `🏘️ **Thread:** ${blockThread}\n` +
-                `📍 **Block:** ${gang.block || 'Not Assigned'}\n` +
-                `🖼️ **Image:** Uploaded\n\n` +
-                `🔒 **Permissions:**\n` +
-                `Faction members can view the thread but cannot reply or create posts.`,
-
-            ephemeral: true
+            reason:
+                `Block thread created for ${gang.name} by ${interaction.user.tag}`
 
         });
 
-    } catch (error) {
+    // ----------------------------------------------
+    // SAVE BLOCK THREAD
+    // ----------------------------------------------
 
-        console.error(
-            '❌ Error creating Block thread:',
-            error
-        );
+    if (factionThreadEntry) {
 
-        return interaction.reply({
+        const [
+            forumId
+        ] = factionThreadEntry;
 
-            content:
-                '❌ I could not create the Block thread.\n\n' +
-                'Make sure the bot has **View Channel**, **Send Messages**, **Send Messages in Threads**, **Create Posts**, and **Manage Threads** permissions in the Block Forum.',
+        gangThreads[forumId].blockThreadId =
+            blockThread.id;
 
-            ephemeral: true
+        gangThreads[forumId].blockThreadName =
+            blockThread.name;
 
-        });
+        gangThreads[forumId].blockForumChannelId =
+            BLOCK_FORUM_CHANNEL_ID;
+
+        gangThreads[forumId].block =
+            gang.block || null;
+
+        gangThreads[forumId].blockImage =
+            blockImage.url;
+
+        gangThreads[forumId].blockThreadCreatedBy =
+            interaction.user.id;
+
+        gangThreads[forumId].blockThreadCreatedAt =
+            new Date().toISOString();
+
+    } else {
+
+        gangThreads[`block_${factionKey}`] = {
+
+            factionKey: factionKey,
+
+            name: gang.name,
+
+            gangRoleId: gang.gangRole,
+
+            block:
+                gang.block || null,
+
+            blockImage:
+                blockImage.url,
+
+            blockForumChannelId:
+                BLOCK_FORUM_CHANNEL_ID,
+
+            blockThreadId:
+                blockThread.id,
+
+            blockThreadName:
+                blockThread.name,
+
+            blockThreadCreatedBy:
+                interaction.user.id,
+
+            blockThreadCreatedAt:
+                new Date().toISOString()
+
+        };
 
     }
+
+    // ----------------------------------------------
+    // SAVE TO RAILWAY
+    // ----------------------------------------------
+
+    fs.writeFileSync(
+        GANG_THREADS_FILE,
+        JSON.stringify(
+            gangThreads,
+            null,
+            4
+        )
+    );
+
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
+
+    return interaction.reply({
+
+        content:
+            `✅ **Block Thread Created Successfully**\n\n` +
+            `🏴 **Faction:** ${gang.name}\n` +
+            `🏘️ **Thread:** ${blockThread}\n` +
+            `📍 **Block:** ${gang.block || 'Not Assigned'}\n` +
+            `🖼️ **Image:** Uploaded\n\n` +
+            `🔒 **Permissions:**\n` +
+            `Faction members can view the thread but cannot reply or create posts.`,
+
+        ephemeral: true
+
+    });
+
+} catch (error) {
+
+    console.error('❌ Error creating Block thread:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Error raw:', error.rawError);
+
+    return interaction.reply({
+
+        content:
+            `❌ I could not create the Block thread.\n\n` +
+            `**Error:** \`${error.message || 'Unknown error'}\`\n` +
+            `**Code:** \`${error.code || 'Unknown'}\`\n\n` +
+            `Check the Railway console for the full error.`,
+
+        ephemeral: true
+
+    });
+
+}
 
 }
 
