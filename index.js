@@ -4500,7 +4500,7 @@ if (
 
     let factionKey = null;
 
-    for (let i = 1; i <= 12; i++) {
+    for (let i = 1; i <= 50; i++) {
 
         const key = `Faction${i}`;
 
@@ -4525,7 +4525,7 @@ if (
 
         return interaction.reply({
             content:
-                '❌ All **12 faction slots** are currently being used.\n\n' +
+                '❌ All **50 faction slots** are currently being used.\n\n' +
                 'Remove an existing faction before creating a new one.',
             ephemeral: true
         });
