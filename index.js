@@ -56,6 +56,28 @@ const FLAG_THREADS_FILE =
 const PROBATION_FILE =
     path.join(DATA_DIR, 'probation.json');
 
+const STAFF_ASSIGNMENTS_FILE =
+    path.join(DATA_DIR, 'staffAssignments.json');
+
+const FLAGS_MESSAGE_FILE =
+    path.join(DATA_DIR, 'flagsMessage.json');
+
+// ======================================================
+// FACTION STAFF ROLES
+// ======================================================
+
+// Regular Faction Staff
+const FACTION_STAFF_ROLE_ID =
+    '1551957053042466903';
+
+// Higherups / High Faction Staff
+const HIGHERUPS_ROLE_ID =
+    '1551957053113761955';
+
+// Role given to staff when assigned to a faction
+const ASSIGNED_FACTION_STAFF_ROLE_NAME =
+    'Assigned to a Faction';
+
 // ======================================================
 // INITIALIZE PERSISTENT DATA
 // ======================================================
@@ -275,6 +297,294 @@ const FLAG_FORUM_CHANNEL_ID =
     process.env.FLAG_FORUM_CHANNEL_ID;
 
 const BLOCK_FORUM_CHANNEL_ID = '1551957056796233845';
+
+// ======================================================
+// FLAG EMOJIS / FLAG DATABASE
+// ======================================================
+
+// EVERY FLAG AVAILABLE ON THE SERVER
+// These are the only flags that can be assigned.
+
+const ALL_FLAG_EMOJIS = {
+    'Black': '<:black:1557403513259171994>',
+    'Baby Blue': '<:babyblue:1557403451904753855>',
+    'Red': '<:red:1557403850715963434>',
+    'Blue': '<:blue:1557403539469238294>',
+    'Green': '<:green:1557403653722079354>',
+    'White': '<:white:1557403993909493791>',
+    'Grey': '<:grey:1557403679865184266>',
+    'Orange': '<:orange:1557403814296944683>',
+    'Light Pink': '<:lightpink:1557403749859852398>',
+    'Mexican': '<:mexican:1557403795947003964>',
+    'Brown': '<:brown:1557403563867635934>',
+    'Lavender': '<:lavender:1557403714728366151>',
+    'Purple': '<:purple:1557403833012064306>',
+    'Camo': '<:camo:1557403630640955603>',
+    'Tan': '<:tan:1557403909226631270>',
+    'Yellow': '<:yellow:1557404012549111858>'
+};
+
+// ======================================================
+// OLD FLAG ASSIGNMENTS
+// ======================================================
+//
+// These are ONLY here so your existing factions continue
+// showing their current flags.
+//
+// New flag assignments are saved automatically in
+// flagThreads.json.
+//
+
+const FLAG_EMOJIS = {
+    'Trapwave': ALL_FLAG_EMOJIS['Black'],
+    '00': ALL_FLAG_EMOJIS['Baby Blue'],
+    'Starlyht': ALL_FLAG_EMOJIS['Red'],
+    'Palomino': ALL_FLAG_EMOJIS['Blue'],
+    'Chaos': ALL_FLAG_EMOJIS['Green'],
+    'I-13': ALL_FLAG_EMOJIS['White'],
+    'F$': ALL_FLAG_EMOJIS['Grey'],
+    'D1': ALL_FLAG_EMOJIS['Orange'],
+    'zZz': ALL_FLAG_EMOJIS['Light Pink'],
+    '5150': ALL_FLAG_EMOJIS['Mexican']
+};
+
+// ======================================================
+// GET FLAG EMOJI
+// ======================================================
+
+function getFlagEmoji(gangName) {
+
+    const entry = Object.entries(FLAG_EMOJIS).find(
+        ([name]) =>
+            name.toLowerCase() ===
+            gangName.toLowerCase()
+    );
+
+    return entry
+        ? entry[1]
+        : '🏴';
+}
+
+function loadFlagThreads() {
+
+    if (!fs.existsSync(FLAG_THREADS_FILE)) {
+        return {};
+    }
+
+    try {
+
+        const data =
+            fs.readFileSync(
+                FLAG_THREADS_FILE,
+                'utf8'
+            );
+
+        if (!data.trim()) {
+            return {};
+        }
+
+        const parsed =
+            JSON.parse(data);
+
+        return (
+            parsed &&
+            typeof parsed === 'object' &&
+            !Array.isArray(parsed)
+        )
+            ? parsed
+            : {};
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not read flagThreads.json:',
+            error
+        );
+
+        return {};
+    }
+}
+
+function buildFlagsEmbed() {
+
+    const flagThreads =
+        loadFlagThreads();
+
+
+    const claimed =
+        new Map();
+
+
+    // Find every claimed flag
+    for (
+        const flag of Object.values(
+            flagThreads
+        )
+    ) {
+
+        if (
+            !flag ||
+            !flag.name
+        ) {
+            continue;
+        }
+
+
+        const flagName =
+            getStoredFlagName(flag);
+
+
+        if (!flagName) {
+            continue;
+        }
+
+
+        claimed.set(
+            flagName,
+            flag.name
+        );
+    }
+
+
+    // ==================================================
+    // CLAIMED
+    // ==================================================
+
+    const claimedText =
+        Object.entries(
+            ALL_FLAG_EMOJIS
+        )
+
+        .filter(
+            ([flagName]) =>
+                claimed.has(flagName)
+        )
+
+        .map(
+            ([flagName, emoji]) =>
+                `${emoji} **${flagName}** — **${claimed.get(flagName)}**`
+        )
+
+        .join('\n');
+
+
+    // ==================================================
+    // AVAILABLE
+    // ==================================================
+
+    const availableText =
+        Object.entries(
+            ALL_FLAG_EMOJIS
+        )
+
+        .filter(
+            ([flagName]) =>
+                !claimed.has(flagName)
+        )
+
+        .map(
+            ([flagName, emoji]) =>
+                `${emoji} **${flagName}** — Available`
+        )
+
+        .join('\n');
+
+
+    const embed =
+        new EmbedBuilder()
+
+            .setColor('#000000')
+
+            .setTitle(
+                '🏳️ LYNWOOD FACTIONS • CURRENT FLAGS'
+            )
+
+            .setFooter({
+                text:
+                    'Lynwood Factions • Flag Identifiers'
+            })
+
+            .setTimestamp();
+
+
+    embed.addFields({
+
+        name:
+            '🙅🏽‍♂️ CLAIMED FLAGS',
+
+        value:
+            claimedText ||
+            'No flags are currently claimed.',
+
+        inline:
+            false
+    });
+
+
+    embed.addFields({
+
+        name:
+            '🗸 AVAILABLE FLAGS',
+
+        value:
+            availableText ||
+            'No flags are currently available.',
+
+        inline:
+            false
+    });
+
+
+    return embed;
+}
+
+// ======================================================
+// GET OLD FLAG NAME
+// ======================================================
+
+function getLegacyFlagName(gangName) {
+
+    const emoji =
+        getFlagEmoji(gangName);
+
+    const entry =
+        Object.entries(ALL_FLAG_EMOJIS).find(
+            ([, flagEmoji]) =>
+                flagEmoji === emoji
+        );
+
+    return entry
+        ? entry[0]
+        : null;
+}
+
+// ======================================================
+// GET STORED FLAG NAME
+// ======================================================
+
+function getStoredFlagName(flag) {
+
+    // New system
+    if (
+        flag &&
+        flag.flagName &&
+        ALL_FLAG_EMOJIS[flag.flagName]
+    ) {
+        return flag.flagName;
+    }
+
+    // Old system
+    if (
+        flag &&
+        flag.name
+    ) {
+        return getLegacyFlagName(
+            flag.name
+        );
+    }
+
+    return null;
+}
 
 // ======================================================
 // GANG CONFIGURATION
@@ -948,6 +1258,14 @@ new SlashCommandBuilder()
             .setName('image')
             .setDescription('Direct link to the faction image.')
             .setRequired(true)
+    )
+
+    .addStringOption(option =>
+    option
+        .setName('flag')
+        .setDescription('Select an available flag.')
+        .setRequired(true)
+        .setAutocomplete(true)
     ),
 
     new SlashCommandBuilder()
@@ -983,6 +1301,32 @@ new SlashCommandBuilder()
         option
             .setName('user')
             .setDescription('The member to place on probation.')
+            .setRequired(true)
+    ),
+
+    new SlashCommandBuilder()
+    .setName('assignstaff')
+    .setDescription('Assign or reassign a Faction Staff member to a faction.')
+    .addUserOption(option =>
+        option
+            .setName('user')
+            .setDescription('The Faction Staff member to assign.')
+            .setRequired(true)
+    )
+    .addStringOption(option =>
+        option
+            .setName('faction')
+            .setDescription('The faction Forum they should moderate.')
+            .setRequired(true)
+    ),
+
+new SlashCommandBuilder()
+    .setName('unassignstaff')
+    .setDescription('Remove a Faction Staff member from their faction assignment.')
+    .addUserOption(option =>
+        option
+            .setName('user')
+            .setDescription('The Faction Staff member to unassign.')
             .setRequired(true)
     ),
 
@@ -1577,6 +1921,108 @@ client.on('interactionCreate', async interaction => {
     // Log selected faction commands
     await logSelectedCommand(interaction);
 
+// ======================================================
+// FLAG AUTOCOMPLETE
+// ======================================================
+
+if (interaction.isAutocomplete()) {
+
+    if (
+        interaction.commandName ===
+        'create-flagthread'
+    ) {
+
+        const focused =
+            interaction.options
+                .getFocused()
+                .toLowerCase();
+
+
+        let flagThreads = {};
+
+        try {
+
+            if (
+                fs.existsSync(
+                    FLAG_THREADS_FILE
+                )
+            ) {
+
+                flagThreads =
+                    JSON.parse(
+                        fs.readFileSync(
+                            FLAG_THREADS_FILE,
+                            'utf8'
+                        )
+                    );
+
+            }
+
+        } catch {
+
+            return interaction.respond([]);
+        }
+
+
+        // Get all currently claimed flags
+        const claimedFlags =
+            new Set(
+
+                Object.values(
+                    flagThreads
+                )
+
+                .map(flag =>
+                    getStoredFlagName(flag)
+                )
+
+                .filter(Boolean)
+
+            );
+
+
+        // Only show flags that are NOT claimed
+        const choices =
+            Object.entries(
+                ALL_FLAG_EMOJIS
+            )
+
+            .filter(
+                ([flagName]) =>
+                    !claimedFlags.has(
+                        flagName
+                    )
+            )
+
+            .filter(
+                ([flagName]) =>
+                    flagName
+                        .toLowerCase()
+                        .includes(focused)
+            )
+
+            .slice(0, 25)
+
+            .map(
+                ([flagName]) => ({
+
+                    name:
+                        flagName,
+
+                    value:
+                        flagName
+
+                })
+            );
+
+
+        return interaction.respond(
+            choices
+        );
+    }
+
+    return;
+}
     // ==================================================
     // /sticky
     // ==================================================
@@ -1778,6 +2224,583 @@ client.on('interactionCreate', async interaction => {
         });
 
     }
+
+    // ======================================================
+// STAFF ASSIGNMENT SYSTEM
+// ======================================================
+
+function loadStaffAssignments() {
+
+    if (!fs.existsSync(STAFF_ASSIGNMENTS_FILE)) {
+        return {};
+    }
+
+    try {
+
+        return JSON.parse(
+            fs.readFileSync(
+                STAFF_ASSIGNMENTS_FILE,
+                'utf8'
+            )
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Failed to load staffAssignments.json:',
+            error
+        );
+
+        return {};
+    }
+}
+
+
+function saveStaffAssignments(data) {
+
+    fs.writeFileSync(
+        STAFF_ASSIGNMENTS_FILE,
+        JSON.stringify(
+            data,
+            null,
+            4
+        )
+    );
+}
+
+
+function getOrCreateAssignedStaffRole(guild) {
+
+    let role =
+        guild.roles.cache.find(
+            r =>
+                r.name ===
+                ASSIGNED_FACTION_STAFF_ROLE_NAME
+        );
+
+    return role;
+}
+
+
+async function applyAssignedStaffForumPermissions(
+    guild,
+    userId,
+    assignedForumChannelId
+) {
+
+    const gangThreads =
+        fs.existsSync(GANG_THREADS_FILE)
+            ? JSON.parse(
+                fs.readFileSync(
+                    GANG_THREADS_FILE,
+                    'utf8'
+                )
+            )
+            : {};
+
+    for (
+        const threadData
+        of Object.values(gangThreads)
+    ) {
+
+        if (
+            !threadData ||
+            !threadData.forumChannelId
+        ) {
+            continue;
+        }
+
+        const forum =
+            guild.channels.cache.get(
+                threadData.forumChannelId
+            );
+
+        if (
+            !forum ||
+            forum.type !== ChannelType.GuildForum
+        ) {
+            continue;
+        }
+
+        // ==========================================
+        // ASSIGNED FACTION
+        // ==========================================
+
+        if (
+            forum.id ===
+            assignedForumChannelId
+        ) {
+
+            await forum.permissionOverwrites.edit(
+                userId,
+                {
+                    ViewChannel: true,
+                    ReadMessageHistory: true,
+                    SendMessages: true,
+                    SendMessagesInThreads: true,
+
+                    // Cannot create new Forum posts
+                    CreatePublicThreads: false,
+                    CreatePrivateThreads: false,
+
+                    // Can moderate existing posts
+                    ManageThreads: true,
+                    ManageMessages: true
+                }
+            );
+
+        }
+
+        // ==========================================
+        // ALL OTHER FACTION FORUMS
+        // ==========================================
+
+        else {
+
+            await forum.permissionOverwrites.edit(
+                userId,
+                {
+                    ViewChannel: false,
+                    ReadMessageHistory: false,
+                    SendMessages: false,
+                    SendMessagesInThreads: false,
+                    CreatePublicThreads: false,
+                    CreatePrivateThreads: false,
+                    ManageThreads: false,
+                    ManageMessages: false
+                }
+            );
+        }
+    }
+}
+
+
+async function removeAssignedStaffForumPermissions(
+    guild,
+    userId
+) {
+
+    const gangThreads =
+        fs.existsSync(GANG_THREADS_FILE)
+            ? JSON.parse(
+                fs.readFileSync(
+                    GANG_THREADS_FILE,
+                    'utf8'
+                )
+            )
+            : {};
+
+    for (
+        const threadData
+        of Object.values(gangThreads)
+    ) {
+
+        if (
+            !threadData ||
+            !threadData.forumChannelId
+        ) {
+            continue;
+        }
+
+        const forum =
+            guild.channels.cache.get(
+                threadData.forumChannelId
+            );
+
+        if (
+            !forum ||
+            forum.type !== ChannelType.GuildForum
+        ) {
+            continue;
+        }
+
+        try {
+
+            await forum.permissionOverwrites.delete(
+                userId
+            );
+
+        } catch (error) {
+
+            console.error(
+                `❌ Failed removing staff permissions from ${forum.name}:`,
+                error
+            );
+        }
+    }
+}
+
+
+// ======================================================
+// /assignstaff
+// ======================================================
+
+if (
+    interaction.commandName ===
+    'assignstaff'
+) {
+
+    // ONLY HIGHERUPS CAN USE THIS
+    if (
+        !interaction.member.roles.cache.has(
+            HIGHERUPS_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ You do not have permission to use `/assignstaff`.',
+            ephemeral: true
+        });
+    }
+
+    const targetUser =
+        interaction.options.getUser(
+            'user'
+        );
+
+    const factionName =
+        interaction.options.getString(
+            'faction'
+        );
+
+    const member =
+        await interaction.guild.members
+            .fetch(targetUser.id)
+            .catch(() => null);
+
+    if (!member) {
+
+        return interaction.reply({
+            content:
+                '❌ That user is not in the server.',
+            ephemeral: true
+        });
+    }
+
+    // TARGET MUST BE REGULAR FACTION STAFF
+    if (
+        !member.roles.cache.has(
+            FACTION_STAFF_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '❌ That user does not have the **Faction Staff** role.',
+            ephemeral: true
+        });
+    }
+
+    // ==========================================
+    // FIND FACTION
+    // ==========================================
+
+    const factions =
+        loadFactions();
+
+    const factionKey =
+        Object.keys(factions).find(
+            key =>
+                key.toLowerCase() ===
+                factionName.toLowerCase()
+        );
+
+    if (!factionKey) {
+
+        return interaction.reply({
+            content:
+                `❌ Faction **${factionName}** was not found in the faction database.`,
+            ephemeral: true
+        });
+    }
+
+    // ==========================================
+    // FIND FACTION FORUM
+    // ==========================================
+
+    let gangThreads = {};
+
+    if (
+        fs.existsSync(
+            GANG_THREADS_FILE
+        )
+    ) {
+
+        try {
+
+            gangThreads =
+                JSON.parse(
+                    fs.readFileSync(
+                        GANG_THREADS_FILE,
+                        'utf8'
+                    )
+                );
+
+        } catch (error) {
+
+            console.error(error);
+        }
+    }
+
+    const faction =
+        factions[factionKey];
+
+    const forumEntry =
+        Object.values(
+            gangThreads
+        ).find(
+            entry =>
+                entry &&
+                (
+                    entry.factionKey ===
+                    factionKey ||
+
+                    (
+                        entry.name &&
+                        faction &&
+                        entry.name.toLowerCase() ===
+                        faction.name.toLowerCase()
+                    )
+                )
+        );
+
+    if (!forumEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ No faction Forum was found for **${faction.name}**.`,
+            ephemeral: true
+        });
+    }
+
+    const forum =
+        interaction.guild.channels.cache.get(
+            forumEntry.forumChannelId
+        );
+
+    if (!forum) {
+
+        return interaction.reply({
+            content:
+                '❌ The faction Forum could not be found.',
+            ephemeral: true
+        });
+    }
+
+    // ==========================================
+    // GET / CREATE ASSIGNED ROLE
+    // ==========================================
+
+    let assignedRole =
+        getOrCreateAssignedStaffRole(
+            interaction.guild
+        );
+
+    if (!assignedRole) {
+
+        assignedRole =
+            await interaction.guild.roles.create({
+                name:
+                    ASSIGNED_FACTION_STAFF_ROLE_NAME,
+                permissions: [],
+                mentionable: false,
+                reason:
+                    'Faction assignment staff role'
+            });
+    }
+
+    // ==========================================
+    // LOAD ASSIGNMENTS
+    // ==========================================
+
+    const assignments =
+        loadStaffAssignments();
+
+    const previousAssignment =
+        assignments[targetUser.id];
+
+    // ==========================================
+    // REMOVE OLD FORUM ACCESS
+    // ==========================================
+
+    await removeAssignedStaffForumPermissions(
+        interaction.guild,
+        targetUser.id
+    );
+
+    // ==========================================
+    // SAVE NEW ASSIGNMENT
+    // ==========================================
+
+    assignments[targetUser.id] = {
+
+        factionKey:
+            factionKey,
+
+        factionName:
+            faction.name,
+
+        forumChannelId:
+            forum.id,
+
+        assignedBy:
+            interaction.user.id,
+
+        assignedAt:
+            new Date().toISOString()
+    };
+
+    saveStaffAssignments(
+        assignments
+    );
+
+    // ==========================================
+    // GIVE ASSIGNED STAFF ROLE
+    // ==========================================
+
+    if (
+        !member.roles.cache.has(
+            assignedRole.id
+        )
+    ) {
+
+        await member.roles.add(
+            assignedRole,
+            'Assigned to faction staff'
+        );
+    }
+
+    // ==========================================
+    // APPLY FORUM ACCESS
+    // ==========================================
+
+    await applyAssignedStaffForumPermissions(
+        interaction.guild,
+        targetUser.id,
+        forum.id
+    );
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
+    return interaction.reply({
+
+        content:
+            previousAssignment
+
+                ? `✅ ${targetUser} has been **reassigned** from **${previousAssignment.factionName}** to **${faction.name}**.\n\nThey can now moderate **${faction.name}** only.`
+
+                : `✅ ${targetUser} has been assigned to **${faction.name}**.\n\nThey can now moderate this faction Forum only.`,
+
+        ephemeral: false
+    });
+}
+
+
+// ======================================================
+// /unassignstaff
+// ======================================================
+
+if (
+    interaction.commandName ===
+    'unassignstaff'
+) {
+
+    // ONLY HIGHERUPS CAN USE THIS
+    if (
+        !interaction.member.roles.cache.has(
+            HIGHERUPS_ROLE_ID
+        )
+    ) {
+
+        return interaction.reply({
+            content:
+                '🔒You do not have permission to use `/unassignstaff`.',
+            ephemeral: true
+        });
+    }
+
+    const targetUser =
+        interaction.options.getUser(
+            'user'
+        );
+
+    const member =
+        await interaction.guild.members
+            .fetch(targetUser.id)
+            .catch(() => null);
+
+    const assignments =
+        loadStaffAssignments();
+
+    const assignment =
+        assignments[targetUser.id];
+
+    if (!assignment) {
+
+        return interaction.reply({
+            content:
+                `🔑 ${targetUser} does not currently have a faction assignment.`,
+            ephemeral: true
+        });
+    }
+
+    // ==========================================
+    // REMOVE FORUM ACCESS
+    // ==========================================
+
+    await removeAssignedStaffForumPermissions(
+        interaction.guild,
+        targetUser.id
+    );
+
+    // ==========================================
+    // REMOVE ASSIGNED ROLE
+    // ==========================================
+
+    if (member) {
+
+        const assignedRole =
+            getOrCreateAssignedStaffRole(
+                interaction.guild
+            );
+
+        if (
+            assignedRole &&
+            member.roles.cache.has(
+                assignedRole.id
+            )
+        ) {
+
+            await member.roles.remove(
+                assignedRole,
+                'Faction staff assignment removed'
+            );
+        }
+    }
+
+    // ==========================================
+    // REMOVE ASSIGNMENT
+    // ==========================================
+
+    delete assignments[
+        targetUser.id
+    ];
+
+    saveStaffAssignments(
+        assignments
+    );
+
+    return interaction.reply({
+
+        content:
+            `🔑 ${targetUser} has been unassigned from **${assignment.factionName}**.`,
+
+        ephemeral: false
+    });
+}
 
 // ==================================================
 // /create-gangthread
@@ -2034,6 +3057,12 @@ if (interaction.commandName === 'create-gangthread') {
                             'SendMessages',
                             'ReadMessageHistory',
                             'SendMessagesInThreads'
+                        ],
+
+                        deny: [
+                            'CreatePublicThreads',
+                            'CreatePrivateThreads'
+                            
                         ]
                     },
 
@@ -2051,6 +3080,7 @@ if (interaction.commandName === 'create-gangthread') {
                         deny: [
                             'CreatePublicThreads',
                             'CreatePrivateThreads'
+                            
                         ]
                     },
 
@@ -2881,6 +3911,96 @@ if (interaction.commandName === 'create-flagthread') {
             .getString('image')
             .trim();
 
+    const flagName =
+    interaction.options
+        .getString('flag')
+        .trim();
+
+// ==================================================
+// VALIDATE FLAG
+// ==================================================
+
+if (!ALL_FLAG_EMOJIS[flagName]) {
+
+    return interaction.reply({
+        content:
+            '❌ That flag does not exist.',
+        ephemeral: true
+    });
+
+}
+
+// ==================================================
+// CHECK IF FLAG IS ALREADY CLAIMED
+// ==================================================
+
+let existingFlagThreads = {};
+
+try {
+
+    if (
+        fs.existsSync(
+            FLAG_THREADS_FILE
+        )
+    ) {
+
+        existingFlagThreads =
+            JSON.parse(
+                fs.readFileSync(
+                    FLAG_THREADS_FILE,
+                    'utf8'
+                )
+            );
+
+    }
+
+} catch (error) {
+
+    console.error(
+        '❌ Could not load flagThreads.json:',
+        error
+    );
+
+    return interaction.reply({
+        content:
+            '❌ I could not load the Flag Identifier database.',
+        ephemeral: true
+    });
+
+}
+
+
+const existingOwner =
+    Object.values(
+        existingFlagThreads
+    ).find(flag => {
+
+        const storedFlag =
+            getStoredFlagName(flag);
+
+        return (
+            storedFlag &&
+            storedFlag.toLowerCase() ===
+            flagName.toLowerCase()
+        );
+
+    });
+
+
+if (existingOwner) {
+
+    return interaction.reply({
+
+        content:
+            `${ALL_FLAG_EMOJIS[flagName]} **${flagName}** is already claimed by **${existingOwner.name}**.\n\n` +
+            `Please choose another flag.`,
+
+        ephemeral:
+            true
+    });
+
+}
+
     // ----------------------------------------------
     // VALIDATE COLOR
     // ----------------------------------------------
@@ -3150,6 +4270,12 @@ if (interaction.commandName === 'create-flagthread') {
 
             name:
                 gangName,
+
+            flagName:
+             flagName,
+
+            flagEmoji:
+               ALL_FLAG_EMOJIS[flagName],
 
             color:
                 color,
@@ -10758,44 +11884,25 @@ if (
     // CLAIMED FLAGS EMBED
     // ----------------------------------------------
 
-    const claimedFlagsEmbed = {
+// ----------------------------------------------
+// CURRENT FLAGS EMBED
+// ----------------------------------------------
 
-        color:
-            0xFF8C00,
+const flagsEmbed =
+    buildFlagsEmbed();
 
-        title:
-            '🚩 LYNWOOD FACTIONS • CLAIMED FLAG IDENTIFIERS',
 
-        description:
-            'Looking for the current **Faction Flag Identifiers**?\n\n' +
+// ----------------------------------------------
+// SEND EMBED
+// ----------------------------------------------
 
-            '📖 **[Click Here to View the Claimed Flag Identifiers](https://discord.com/channels/1387016155050283100/1549679698563563570)**\n\n' +
+await message.channel.send({
 
-            'Please check the current identifiers before selecting one for your faction.\n\n',
+    embeds: [
+        flagsEmbed
+    ]
 
-        footer: {
-
-            text:
-                'Lynwood • Claimed Flag Identifiers'
-
-        },
-
-        timestamp:
-            new Date().toISOString()
-
-    };
-
-    // ----------------------------------------------
-    // SEND EMBED
-    // ----------------------------------------------
-
-    await message.channel.send({
-
-        embeds: [
-            claimedFlagsEmbed
-        ]
-
-    });
+});
 
     return;
 
