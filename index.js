@@ -2492,28 +2492,35 @@ if (
         });
     }
 
-    // ==========================================
-    // FIND FACTION
-    // ==========================================
+ // ==========================================
+// FIND FACTION
+// ==========================================
 
-    const factions =
-        loadFactions();
+const factions =
+    loadFactions();
 
-    const factionKey =
-        Object.keys(factions).find(
-            key =>
-                key.toLowerCase() ===
-                factionName.toLowerCase()
-        );
+const factionEntry =
+    Object.entries(factions).find(
+        ([, faction]) =>
+            faction &&
+            faction.name &&
+            faction.name.trim().toLowerCase() ===
+            factionName.trim().toLowerCase()
+    );
 
-    if (!factionKey) {
+if (!factionEntry) {
 
-        return interaction.reply({
-            content:
-                `❌ Faction **${factionName}** was not found in the faction database.`,
-            ephemeral: true
-        });
-    }
+    return interaction.reply({
+        content:
+            `❌ Faction **${factionName}** was not found in the faction database.`,
+        ephemeral: true
+    });
+}
+
+const [
+    factionKey,
+    faction
+] = factionEntry;
 
     // ==========================================
     // FIND FACTION FORUM
@@ -2542,9 +2549,6 @@ if (
             console.error(error);
         }
     }
-
-    const faction =
-        factions[factionKey];
 
     const forumEntry =
         Object.values(
