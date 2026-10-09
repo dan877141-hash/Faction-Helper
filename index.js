@@ -968,7 +968,19 @@ const commands = [
     .setName('ganglist')
     .setDescription('Show all registered factions.'),
 
-        new SlashCommandBuilder()
+    
+    new SlashCommandBuilder()
+    .setName('gangroster')
+    .setDescription('View the current roster of any registered gang.')
+    .addStringOption(option =>
+        option
+            .setName('gang')
+            .setDescription('Enter the registered gang name.')
+            .setRequired(true)
+            .setMaxLength(50)
+    ),
+
+    new SlashCommandBuilder()
         .setName('activity')
         .setDescription('Record faction activity.')
         .addStringOption(option =>
@@ -7404,6 +7416,323 @@ if (interaction.commandName === 'ganglist') {
 
 }
 
+ 
+ // ==================================================
+ // /gangroster
+ // ==================================================
+
+if (interaction.commandName === 'gangroster') {
+
+    // ----------------------------------------------
+    // ROLE CONFIGURATION
+    // ----------------------------------------------
+
+    const FACTION_STAFF_ROLE_ID =
+        '1551957053042466903';
+
+    const HIGH_FACTION_STAFF_ROLE_ID =
+        '1551957053113761955';
+
+    const FACTION_OWNER_ROLE_ID =
+        '1551957052941930629';
+
+    const memberRoles =
+        interaction.member.roles.cache;
+
+    const isFactionStaff =
+        memberRoles.has(FACTION_STAFF_ROLE_ID) ||
+        memberRoles.has(HIGH_FACTION_STAFF_ROLE_ID);
+
+    // ----------------------------------------------
+    // GET GANG NAME
+    // ----------------------------------------------
+
+    const gangName =
+        interaction.options
+            .getString('gang')
+            .trim();
+
+    // ----------------------------------------------
+    // LOAD REGISTERED FACTIONS
+    // ----------------------------------------------
+
+    const factions = loadFactions();
+
+    const factionEntry =
+        Object.entries(factions).find(
+            ([, gang]) =>
+                gang &&
+                gang.name &&
+                gang.name.toLowerCase() ===
+                    gangName.toLowerCase()
+        );
+
+    if (!factionEntry) {
+
+        return interaction.reply({
+            content:
+                `❌ I could not find a registered gang named **${gangName}**. Check the spelling and try again.`,
+            ephemeral: true
+        });
+
+    }
+
+    const [factionKey, gang] =
+        factionEntry;
+
+    // ----------------------------------------------
+    // OWNER / LEADER PERMISSIONS
+    // ----------------------------------------------
+
+    if (!isFactionStaff) {
+
+        const isFactionOwner =
+            memberRoles.has(FACTION_OWNER_ROLE_ID) &&
+            memberRoles.has(gang.gangRole);
+
+        const isGangLeader =
+            memberRoles.has(gang.leaderRole);
+
+        if (!isFactionOwner && !isGangLeader) {
+
+            return interaction.reply({
+                content:
+                    '❌ You do not have permission to check this gang roster. You may only check your own gang.',
+                ephemeral: true
+            });
+
+        }
+
+        // ------------------------------------------
+        // MUST BE USED INSIDE A THREAD
+        // ------------------------------------------
+
+        const channel =
+            interaction.channel;
+
+        if (!channel || !channel.isThread()) {
+
+            return interaction.reply({
+                content:
+                    '❌ You must use `/gangroster` inside your own gang forum thread.',
+                ephemeral: true
+            });
+
+        }
+
+        // ------------------------------------------
+        // VERIFY GANG FORUM OWNERSHIP
+        // ------------------------------------------
+
+        let gangThreads = {};
+
+        try {
+
+            if (
+                fs.existsSync(
+                    GANG_THREADS_FILE
+                )
+            ) {
+
+                gangThreads =
+                    JSON.parse(
+                        fs.readFileSync(
+                            GANG_THREADS_FILE,
+                            'utf8'
+                        )
+                    );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                '❌ Could not load gang thread database:',
+                error
+            );
+
+            return interaction.reply({
+                content:
+                    '❌ I could not verify your gang thread. Please contact Faction Staff.',
+                ephemeral: true
+            });
+
+        }
+
+        const parentForum =
+            gangThreads[channel.parentId];
+
+        if (
+            !parentForum ||
+            parentForum.factionKey !== factionKey
+        ) {
+
+            return interaction.reply({
+                content:
+                    '❌ You can only check your roster inside your own gang forum.',
+                ephemeral: true
+            });
+
+        }
+
+    }
+
+    // ----------------------------------------------
+    // VERIFY GANG ROLE
+    // ----------------------------------------------
+
+    const gangRole =
+        interaction.guild.roles.cache.get(
+            gang.gangRole
+        );
+
+    if (!gangRole) {
+
+        return interaction.reply({
+            content:
+                `❌ The Discord role for **${gang.name}** could not be found.`,
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // FETCH CURRENT SERVER MEMBERS
+    // ----------------------------------------------
+
+    try {
+
+        await interaction.guild.members.fetch();
+
+    } catch (error) {
+
+        console.error(
+            '❌ Could not fetch members for /gangroster:',
+            error
+        );
+
+        return interaction.reply({
+            content:
+                '❌ I could not load the current roster. Please try again.',
+            ephemeral: true
+        });
+
+    }
+
+    // ----------------------------------------------
+    // BUILD ROSTER
+    // Exclude the Faction Owner role.
+    // ----------------------------------------------
+
+    const rosterMembers =
+        [...gangRole.members.values()]
+            .filter(member =>
+                !member.roles.cache.has(
+                    FACTION_OWNER_ROLE_ID
+                )
+            )
+            .sort((a, b) =>
+                a.displayName.localeCompare(
+                    b.displayName
+                )
+            );
+
+    const memberCount =
+        rosterMembers.length;
+
+    const rosterText =
+        memberCount > 0
+            ? rosterMembers
+                .map((member, index) =>
+                    `**${index + 1}.** ${member}`
+                )
+                .join('\n')
+            : 'No regular members are currently assigned to this gang.';
+
+    // ----------------------------------------------
+    // DISCORD EMBED DESCRIPTION LIMIT
+    // ----------------------------------------------
+
+    const MAX_DESCRIPTION_LENGTH = 3900;
+
+    let displayedRoster =
+        rosterText;
+
+    if (
+        displayedRoster.length >
+        MAX_DESCRIPTION_LENGTH
+    ) {
+
+        displayedRoster =
+            displayedRoster.slice(
+                0,
+                MAX_DESCRIPTION_LENGTH - 100
+            ) +
+            '\n\n*Roster shortened to fit Discord’s message limit.*';
+
+    }
+
+    // ----------------------------------------------
+    // GANG EMBED COLOR
+    // ----------------------------------------------
+
+    const parsedColor =
+        parseInt(
+            (gang.color || '#080808')
+                .replace('#', ''),
+            16
+        );
+
+    const embedColor =
+        Number.isInteger(parsedColor) &&
+        parsedColor >= 0 &&
+        parsedColor <= 0xFFFFFF
+            ? parsedColor
+            : 0xFF8C00;
+
+    // ----------------------------------------------
+    // CREATE ROSTER EMBED
+    // ----------------------------------------------
+
+    const rosterEmbed = {
+
+        color:
+            embedColor,
+
+        title:
+            `👥 ${gang.name} — Current Roster`,
+
+        description:
+            `**Regular Members: ${memberCount}**\n` +
+            `*Faction Owner is excluded from this count.*\n\n` +
+            displayedRoster,
+
+        footer: {
+            text:
+                '6Unity Factions • Roster Check'
+        },
+
+        timestamp:
+            new Date().toISOString()
+
+    };
+
+    // ----------------------------------------------
+    // SEND ROSTER
+    // ----------------------------------------------
+
+    return interaction.reply({
+
+        embeds: [
+            rosterEmbed
+        ],
+
+        ephemeral: false
+
+    });
+
+}
+
 // ==================================================
 // /gangleader
 // ==================================================
@@ -11783,7 +12112,7 @@ client.on('messageCreate', async message => {
 
         description:
             'Looking for the current **Faction Rules**?\n\n' +
-            '📖 **[Click Here to View the Faction Rules](https://docs.google.com/document/d/1wLqhj4ovee_VM6srkhVrAbT-J2M_8O89JqLlJ33S4Y0/edit?usp=sharing)**\n\n' +
+            '📖 **[Click Here to View the Faction Rules](https://docs.google.com/document/d/1i__RgQ3quqg1wOss4zl4dh7gFNcd_CjbCLa_L_nFdXY/edit?usp=sharing)**\n\n' +
             'Please make sure you read and understand all faction rules before participating in faction activities.',
 
         footer: {
